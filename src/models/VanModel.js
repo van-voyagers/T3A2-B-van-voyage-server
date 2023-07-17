@@ -7,4 +7,4 @@ const VanSchema = new mongoose.Schema({
 
 const Van = mongoose.model('Van', VanSchema);
 
-module.exports = Van;
+module.exports = {Van};
