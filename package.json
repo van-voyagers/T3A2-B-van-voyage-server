@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "test": "jest",
-    "start-dev": "NODE_ENV=development nodemon src/index.js"
+    "start-dev": "NODE_ENV=development nodemon src/index.js",
+    "start-prod":"NODE_ENV=production node src/index.js"
   },
   "keywords": [],
   "author": "",
