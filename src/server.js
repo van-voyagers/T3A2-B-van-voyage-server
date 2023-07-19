@@ -40,9 +40,9 @@ app.use(express.urlencoded({ extended: true }));
 
 // Routes
 const userController = require("./controllers/UserController");
-const bookingController = require("./controllers/BookingRoutes");
+const bookingController = require("./controllers/BookingController");
 app.use("/users", userController);
-app.use("/bookings", bookingController)
+app.use("/bookings", bookingController);
 
 const mongoose = require("mongoose");
 var databaseURL = "";

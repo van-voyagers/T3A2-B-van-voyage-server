@@ -190,8 +190,6 @@ router.delete("/delete", authenticate, async (req, res) => {
 });
 
 
-
-
 async function authenticate(req, res, next) {
   try {
     const token = req.header("Authorization").replace("Bearer ", "");
