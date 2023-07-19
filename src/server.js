@@ -38,6 +38,10 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Routes
+const userController = require("./controllers/UserController");
+app.use("/users", userController);
+
 const mongoose = require("mongoose");
 var databaseURL = "";
 switch (process.env.NODE_ENV.toLowerCase()) {
@@ -67,6 +71,7 @@ databaseConnector(databaseURL)
     ${error}
     `);
   });
+
 // Return a bunch of useful details from the database connection
 // Dig into each property here:
 // https://mongoosejs.com/docs/api/connection.html
