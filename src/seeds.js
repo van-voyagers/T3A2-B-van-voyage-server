@@ -76,7 +76,7 @@ const vans = [
     pricePerDay: 240,
   },
   {
-    vanName: "Marigold",
+    vanName: "Venga Bus",
     pricePerDay: 130,
   },
 ];
