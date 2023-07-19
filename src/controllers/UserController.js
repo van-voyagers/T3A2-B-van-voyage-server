@@ -6,6 +6,23 @@ const mongoose = require("mongoose");
 
 const { User } = require("../models/UserModel");
 
+// Middleware function to authenticate the user making the request.
+// Verifies the JWT from the Authorization header and attaches the user to the request object.
+async function authenticate(req, res, next) {
+  try {
+    const token = req.header("Authorization").replace("Bearer ", "");
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findOne({ _id: decoded._id });
+    if (!user) {
+      throw new Error();
+    }
+    req.user = user;
+    next();
+  } catch (e) {
+    res.status(401).json({ message: "Please authenticate" });
+  }
+}
+
 // GET all users.
 // This endpoint is accessible only to admin users.
 // No query parameters are required.
@@ -296,22 +313,5 @@ router.delete("/admin/delete/:userId", authenticate, async (req, res) => {
   await User.findByIdAndDelete(req.params.userId);
   res.json({ message: "User deleted successfully" });
 });
-
-// Middleware function to authenticate the user making the request.
-// Verifies the JWT from the Authorization header and attaches the user to the request object.
-async function authenticate(req, res, next) {
-  try {
-    const token = req.header("Authorization").replace("Bearer ", "");
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findOne({ _id: decoded._id });
-    if (!user) {
-      throw new Error();
-    }
-    req.user = user;
-    next();
-  } catch (e) {
-    res.status(401).json({ message: "Please authenticate" });
-  }
-}
 
 module.exports = router;

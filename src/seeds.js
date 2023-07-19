@@ -61,11 +61,11 @@ async function createUsers() {
     },
   ];
   // Add new user data into the database.
-  await User.insertMany(users);
+  const createdUsers = await User.insertMany(users);
   console.log("User data created.");
+  return createdUsers;
 }
 
-// To fill in after creating user data encryption functionality.
 const vans = [
   {
     vanName: "Marigold",
@@ -81,29 +81,46 @@ const vans = [
   },
 ];
 
-// To fill in after creating users successfully.
-const bookings = [];
+async function createVans() {
+  const createdVans = await Van.insertMany(vans);
+  console.log("Van data created.");
+  return createdVans;
+}
 
-// To fill in after creating users successfully.
-const reviews = [];
+async function createBookings(users, vans) {
+  const bookings = [
+    {
+      user: users[0]._id,
+      van: vans[0]._id,
+      startDate: new Date('2024-05-01'),
+      endDate: new Date('2024-05-10'),
+      totalPrice: vans[0].pricePerDay * 10,
+    },
+    {
+      user: users[1]._id,
+      van: vans[1]._id,
+      startDate: new Date('2024-06-01'),
+      endDate: new Date('2024-06-15'),
+      totalPrice: vans[1].pricePerDay * 15,
+    },
+    // more bookings...
+  ];
+
+  const createdBookings = await Booking.insertMany(bookings);
+  console.log("Booking data created.");
+  return createdBookings;
+}
 
 databaseConnector(databaseURL)
-  .then(() => {
-    console.log("Database connected successfully!");
-  })
-  .catch((error) => {
-    console.log(`
-    Some error occurred connecting to the database! It was: 
-    ${error}
-    `);
-  })
+  .then(() => console.log("Database connected successfully!"))
+  .catch((error) => console.log(`Some error occurred connecting to the database! It was: ${error}`))
   .then(async () => {
     if (process.env.WIPE == "true") {
       // Get the names of all collections in the DB.
       const collections = await mongoose.connection.db
         .listCollections()
         .toArray();
-
+  
       // Empty the data and collections from the DB so that they no longer exist.
       collections
         .map((collection) => collection.name)
@@ -114,13 +131,12 @@ databaseConnector(databaseURL)
     }
   })
   .then(createUsers)
-  .then(async () => {
-    // Add new van data into the database.
-    await Van.insertMany(vans);
-    console.log("Van data created.");
+  .then((createdUsers) => {
+    return createVans().then((createdVans) => [createdUsers, createdVans]);
   })
+  .then(([createdUsers, createdVans]) => createBookings(createdUsers, createdVans))
   .then(() => {
-    // Disconnect from the database.
     mongoose.connection.close();
     console.log("DB seed connection closed.");
   });
+

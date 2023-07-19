@@ -31,6 +31,7 @@ async function authenticate(req, res, next) {
   }
 }
 
+
 // GET all vans.
 // This endpoint is accessible only to admin users. 
 // No query parameters are required.
@@ -46,6 +47,7 @@ router.get("/all", authenticate, async (req, res) => {
 
   res.json(vans);
 });
+
 
 // GET vans by search term.
 // Admin users can search for vans by vanName or pricePerDay.
@@ -78,6 +80,83 @@ router.get("/search", authenticate, async (req, res) => {
     res.status(500).json({ message: "An error occurred during the search" });
   }
 });
+
+
+// POST a new van.
+// Only admin users can access this endpoint.
+// Requires `vanName` and `pricePerDay` in the request body. 
+router.post("/", authenticate, async (req, res) => {
+  if (!req.user.admin) {
+    return res.status(403).json({ message: "Unauthorized" });
+  }
+
+  const { vanName, pricePerDay } = req.body;
+  if (!vanName || !pricePerDay) {
+    return res.status(400).json({ message: "Missing vanName or pricePerDay in the request body" });
+  }
+
+  const newVan = new Van({ vanName, pricePerDay });
+
+  try {
+    const savedVan = await newVan.save();
+    res.status(201).json(savedVan);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: "An error occurred while trying to save the van" });
+  }
+});
+
+
+// PUT (update) a van.
+// Only admin users can access this endpoint.
+// Updates the `vanName` and/or `pricePerDay` of the van specified by the `id` route parameter.
+router.put("/:id", authenticate, async (req, res) => {
+  if (!req.user.admin) {
+    return res.status(403).json({ message: "Unauthorized" });
+  }
+
+  const { vanName, pricePerDay } = req.body;
+  if (!vanName && !pricePerDay) {
+    return res.status(400).json({ message: "Missing update fields in the request body" });
+  }
+
+  try {
+    const updatedVan = await Van.findByIdAndUpdate(req.params.id, { vanName, pricePerDay }, { new: true });
+
+    if (!updatedVan) {
+      return res.status(404).json({ message: "Van not found to update" });
+    }
+
+    res.json(updatedVan);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: "An error occurred while trying to update the van" });
+  }
+});
+
+
+// DELETE a van.
+// Only admin users can access this endpoint.
+// Deletes the van specified by the `id` route parameter.
+router.delete("/:id", authenticate, async (req, res) => {
+  if (!req.user.admin) {
+    return res.status(403).json({ message: "Unauthorized" });
+  }
+
+  try {
+    const deletedVan = await Van.findByIdAndDelete(req.params.id);
+
+    if (!deletedVan) {
+      return res.status(404).json({ message: "Van not found to delete" });
+    }
+
+    res.json({ message: "Van successfully deleted" });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: "An error occurred while trying to delete the van" });
+  }
+});
+
 
 module.exports = router;
 
