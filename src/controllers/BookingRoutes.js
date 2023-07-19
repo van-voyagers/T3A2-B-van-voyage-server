@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const bookingFunctions = require('../controllers/BookingFunctions');
+const userController = require('../controllers/UserController')
 
 // Route to get all bookings
-router.get('/bookings', async (req, res) => {
+router.get('/bookings', userController.authenticate, async (req, res) => {
   try {
     const bookings = await bookingFunctions.getAllBookings();
     res.json(bookings);
@@ -13,7 +14,7 @@ router.get('/bookings', async (req, res) => {
 });
 
 // Route to get a specific booking by ID
-router.get('/bookings/:id', async (req, res) => {
+router.get('/bookings/:id', userController.authenticate, async (req, res) => {
   try {
     const booking = await bookingFunctions.getBookingById(req.params.id);
     if (booking) {
@@ -27,7 +28,7 @@ router.get('/bookings/:id', async (req, res) => {
 });
 
 // Route to create a new booking
-router.post('/bookings', async (req, res) => {
+router.post('/bookings', userController.authenticate, async (req, res) => {
   const { userID, vanID, startDate, endDate, totalPrice } = req.body;
   try {
     const newBooking = await bookingFunctions.createBooking(userID, vanID, startDate, endDate, totalPrice);
@@ -38,7 +39,7 @@ router.post('/bookings', async (req, res) => {
 });
 
 // Route to update a booking by ID
-router.put('/bookings/:id', async (req, res) => {
+router.put('/bookings/:id', userController.authenticate, async (req, res) => {
   try {
     const updatedBooking = await bookingFunctions.updateBooking(req.params.id, req.body);
     res.json(updatedBooking);
@@ -48,7 +49,7 @@ router.put('/bookings/:id', async (req, res) => {
 });
 
 // Route to delete a booking by ID
-router.delete('/bookings/:id', async (req, res) => {
+router.delete('/bookings/:id', userController.authenticate, async (req, res) => {
   try {
     const deletedBooking = await bookingFunctions.deleteBooking(req.params.id);
     res.json(deletedBooking);
