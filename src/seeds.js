@@ -66,6 +66,7 @@ async function createUsers() {
 }
 
 // To fill in after creating user data encryption functionality.
+async function createVans() {
 const vans = [
   {
     vanName: "Marigold",
@@ -80,9 +81,29 @@ const vans = [
     pricePerDay: 130,
   },
 ];
+  await Van.insertMany(vans);
+  console.log("Van data created.");
+}
 
 // To fill in after creating users successfully.
-const bookings = [];
+async function createBookings() {
+const bookings = [
+  {
+    user: '64b52e2ee7bb103d38763a2a', // Replace with the actual ObjectID of the first user created in the database
+    van: '64b52e2fe7bb103d38763a2d',   // Replace with the actual ObjectID of the first van created in the database
+    startDate: new Date('2023-07-20'),
+    endDate: new Date('2023-07-25'),
+  },
+  {
+    user: '64b52e2ee7bb103d38763a2b', // Replace with the actual ObjectID of the first user created in the database
+    van: '64b52e2fe7bb103d38763a2f',   // Replace with the actual ObjectID of the second van created in the database
+    startDate: new Date('2023-08-10'),
+    endDate: new Date('2023-08-15'),
+  },
+  ];
+  await Booking.insertMany(bookings);
+  console.log("Booking data created.");
+}
 
 // To fill in after creating users successfully.
 const reviews = [];
@@ -114,11 +135,13 @@ databaseConnector(databaseURL)
     }
   })
   .then(createUsers)
-  .then(async () => {
-    // Add new van data into the database.
-    await Van.insertMany(vans);
-    console.log("Van data created.");
-  })
+  .then(createVans)
+  .then(createBookings)
+  //.then(async () => {
+  //  // Add new van data into the database.
+  //  await Van.insertMany(vans);
+  //  console.log("Van data created.");
+  //})
   .then(() => {
     // Disconnect from the database.
     mongoose.connection.close();
