@@ -37,7 +37,6 @@ async function hashPassword(password) {
 }
 
 async function createUsers() {
-  // Create some raw data for the Roles collection, obeying the needed fields from the Role schema.
   const users = [
     {
       firstName: "John",
@@ -60,7 +59,6 @@ async function createUsers() {
       admin: false,
     },
   ];
-  // Add new user data into the database.
   const createdUsers = await User.insertMany(users);
   console.log("User data created.");
   return createdUsers;
@@ -111,17 +109,35 @@ async function createBookings(users, vans) {
   return createdBookings;
 }
 
+async function createReviews(bookings) {
+  const reviews = [
+    {
+      booking: bookings[0]._id,
+      rating: 4,
+      comment: "Great van, loved it!",
+    },
+    {
+      booking: bookings[1]._id,
+      rating: 5,
+      comment: "Amazing experience, highly recommend.",
+    },
+    // more reviews...
+  ];
+
+  const createdReviews = await Review.insertMany(reviews);
+  console.log("Review data created.");
+  return createdReviews;
+}
+
 databaseConnector(databaseURL)
   .then(() => console.log("Database connected successfully!"))
   .catch((error) => console.log(`Some error occurred connecting to the database! It was: ${error}`))
   .then(async () => {
     if (process.env.WIPE == "true") {
-      // Get the names of all collections in the DB.
       const collections = await mongoose.connection.db
         .listCollections()
         .toArray();
-  
-      // Empty the data and collections from the DB so that they no longer exist.
+
       collections
         .map((collection) => collection.name)
         .forEach(async (collectionName) => {
@@ -135,8 +151,10 @@ databaseConnector(databaseURL)
     return createVans().then((createdVans) => [createdUsers, createdVans]);
   })
   .then(([createdUsers, createdVans]) => createBookings(createdUsers, createdVans))
+  .then((createdBookings) => createReviews(createdBookings))
   .then(() => {
     mongoose.connection.close();
     console.log("DB seed connection closed.");
   });
+
 
