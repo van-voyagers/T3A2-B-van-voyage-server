@@ -1,116 +1,60 @@
-const { Booking } = require('../models/BookingModel');
-const { User } = require('../models/UserModel');
-const { Van } = require('../models/VanModel');
+const express = require('express')
+const jwt = require('jsonwebtoken')
+const router = express.Router()
+const mongoose = require('mongoose')
 
-const express = require('express');
-const router = express.Router();
-const jwt = require('jsonwebtoken');
-const mongoose = require('mongoose');
+const { Booking } = require('../models/BookingModel')
+const { User } = require('../models/UserModel')
+const { Van } = require('../models/VanModel')
 
-// Middleware for user authentication
-function authenticate(req, res, next) {
-  const token = req.header('Authorization')?.replace('Bearer ', '');
-  if (!token) {
-    return res.status(401).json({ message: 'Please authenticate' });
-  }
-
+// Middleware function to authenticate the user making the request.
+// Verifies the JWT from the Authorization header and attaches the user to the request object.
+async function authenticate(req, res, next) {
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded;
-    next();
-  } catch (error) {
-    res.status(401).json({ message: 'Invalid token' });
-  }
-}
+    const header = req.header('Authorization')
 
-// Middleware for admin authentication
-function authenticateAdmin(req, res, next) {
-  if (req.user.admin) {
-    next();
-  } else {
-    res.status(403).json({ message: 'Admin access required' });
-  }
-}
-
-// Retrieve all bookings, admin only
-async function getAllBookings(req, res) {
-  try {
-    if (req.user.admin) {
-      const bookings = await Booking.find({}).exec();
-      res.json(bookings);
-    } else {
-      const bookings = await Booking.find({ user: req.user._id }).exec();
-      res.json(bookings);
+    if (!header) {
+      return res.status(401).json({ message: 'Missing authorization header' })
     }
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+
+    const token = header.replace('Bearer ', '')
+    const decoded = jwt.verify(token, process.env.JWT_SECRET)
+
+    const user = await User.findOne({ _id: decoded._id })
+    if (!user) {
+      return res.status(401).json({ message: 'User not found' })
+    }
+
+    req.user = user
+    next()
+  } catch (e) {
+    res.status(401).json({ message: 'Error authenticating: ' + e.message })
   }
 }
-
-// Route to get all bookings
-router.get('/all', authenticate, getAllBookings);
-
-// Retrieve booking by ID, user can only retrieve own booking by ID.
-router.get('/:id', authenticate, async (req, res) => {
-  try {
-    const booking = req.user.admin
-      ? await Booking.findById(req.params.id).exec()
-      : await Booking.findOne({ _id: req.params.id, user: req.user._id }).exec();
-
-    if (!booking) {
-      return res.status(404).json({ message: 'Booking not found' });
-    }
-    
-    res.json(booking);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
-
-// Search for bookings, admin only
-router.get('/search', [authenticate, authenticateAdmin], async (req, res) => {
-  const query = req.query.q;
-  if (!query) {
-    return res.status(400).json({ message: 'Missing query parameter' });
-  }
-
-  try {
-    const bookings = await Booking.find({
-      $or: [
-        { startDate: { $regex: new RegExp(query, 'i') } },
-        { endDate: { $regex: new RegExp(query, 'i') } },
-      ],
-    }).exec();
-    
-    res.json(bookings);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
 
 // Total price calculation used in createBooking()
 async function calculateTotalPrice(vanID, startDate, endDate) {
   try {
     // Find the van by its ID to get the pricePerDay
-    const van = await Van.findById(vanID);
+    const van = await Van.findById(vanID)
     if (!van) {
-      throw new Error('Van not found');
+      throw new Error('Van not found')
     }
 
     // Convert startDate and endDate to Date objects
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+    const start = new Date(startDate)
+    const end = new Date(endDate)
 
     // Calculate the number of days between startDate and endDate
-    const oneDay = 24 * 60 * 60 * 1000; // One day in milliseconds
-    const days = Math.floor(Math.abs((end - start) / oneDay));
+    const oneDay = 24 * 60 * 60 * 1000 // One day in milliseconds
+    const days = Math.floor(Math.abs((end - start) / oneDay))
 
     // Calculate the totalPrice by multiplying days with van's pricePerDay
-    const totalPrice = days * van.pricePerDay;
+    const totalPrice = days * van.pricePerDay
 
-    return totalPrice;
+    return totalPrice
   } catch (error) {
-    throw new Error('Error calculating total price');
+    throw new Error('Error calculating total price')
   }
 }
 
@@ -119,207 +63,194 @@ async function createBooking(vanID, startDate, endDate, req) {
     // Check if vanID is a valid object type
     console.log('Received vanID:', vanID)
     if (!mongoose.Types.ObjectId.isValid(vanID)) {
-      throw new Error('Invalid van ID');
+      throw new Error('Invalid van ID')
     }
 
     // Retrieve userID from the token
-    const userID = req.user._id;
+    const userID = req.user._id
 
     // Check if the van exists
-    const vanExists = await Van.exists({ _id: vanID });
+    const vanExists = await Van.exists({ _id: vanID })
     if (!vanExists) {
-      throw new Error('The specified van does not exist');
+      throw new Error('The specified van does not exist')
     }
 
     // Check if the user exists
-    const userExists = await User.exists({ _id: userID });
+    const userExists = await User.exists({ _id: userID })
     if (!userExists) {
-      throw new Error('The specified user does not exist');
+      throw new Error('The specified user does not exist')
     }
 
-    const isAdmin = req.user.admin;
-    const totalPrice = await calculateTotalPrice(vanID, startDate, endDate);
+    const totalPrice = await calculateTotalPrice(vanID, startDate, endDate)
     const booking = new Booking({
       user: userID, // Set the user ID obtained from the token
       van: vanID,
       startDate: startDate,
       endDate: endDate,
       totalPrice: totalPrice,
-    });
+    })
 
-    await booking.save();
-    return booking;
+    await booking.save()
+    return booking
   } catch (error) {
-    throw new Error('Error creating booking: ' + error.message);
+    throw new Error('Error creating booking: ' + error.message)
   }
 }
 
-async function updateBooking(bookingID, updates, isAdmin) {
-  if (!isAdmin) {
-    throw new Error('Unauthorized');
+// GET all bookings.
+// This endpoint is accessible only to admin users.
+// No query parameters are required.
+router.get('/admin/all', authenticate, async (req, res) => {
+  if (!req.user.admin) {
+    return res.status(403).json({ message: 'Unauthorized' })
   }
 
-  const booking = await Booking.findByIdAndUpdate(bookingID, updates, { new: true }).exec();
-  return booking;
-}
-
-async function deleteBooking(bookingID, userID, isAdmin) {
-  const booking = await getBookingById(bookingID, userID, isAdmin);
-  if (!booking) {
-    throw new Error('Booking not found');
+  const bookings = await Booking.find()
+  if (!bookings) {
+    return res.status(400).json({ message: 'No bookings found' })
   }
 
-  if (!isAdmin && booking.user.toString() !== userID.toString()) {
-    throw new Error('Unauthorized');
+  res.json(bookings)
+})
+
+// Query bookings by value (admin only)
+router.get("/admin/search", authenticate, async (req, res) => {
+  if (!req.user.admin) {
+    return res.status(403).json({ message: "Unauthorized" });
   }
 
-  return await Booking.findByIdAndDelete(bookingID).exec();
-}
+  const query = req.query.q;
+  if (!query) {
+    return res.status(400).json({ message: "Missing query parameter" });
+  }
 
+  const startDateQuery = new Date(query);
+  const endDateQuery = new Date(query);
+  endDateQuery.setDate(endDateQuery.getDate() + 1);
 
-
-async function searchBookings(query, isAdmin) {
-  // Define search criteria for string fields
-  const stringCriteria = {
+  const dateCriteria = {
     $or: [
-      { startDate: { $regex: new RegExp(query, "i") } },
-      { endDate: { $regex: new RegExp(query, "i") } },
-      // Add more search criteria as needed
+      { startDate: { $gte: startDateQuery, $lt: endDateQuery } },
+      { endDate: { $gte: startDateQuery, $lt: endDateQuery } },
     ],
   };
 
-  if (isAdmin) {
-    // Admins can also search by user ID or van ID
-    if (mongoose.Types.ObjectId.isValid(query)) {
-      stringCriteria.$or.push({ user: query });
-      stringCriteria.$or.push({ van: query });
-    }
-  }
-
+  let bookings;
   try {
-    const bookings = await Booking.find(stringCriteria).exec();
+    // Try exact match on ObjectId fields
+    if (mongoose.Types.ObjectId.isValid(query)) {
+      bookings = await Booking.find({
+        $or: [{ 'van': query }, { 'user': query }]
+      });
+    } else {
+      bookings = await Booking.find(dateCriteria);
+    }
 
     if (bookings.length === 0) {
-      return [];
+      return res.status(404).json({ message: "No bookings found" });
     }
 
-    return bookings;
-  } catch (err) {
-    console.error(err);
-    throw new Error('An error occurred during the search');
-  }
-}
-
-// Route to get all bookings
-router.get('/all', authenticate, async (req, res) => {
-  try {
-    if (req.user.admin) {
-      const bookings = await getAllBookings(req);
-      res.json(bookings);
-    } else {
-      const userBookings = await getAllBookingsForUser(req.user._id);
-      res.json(userBookings);
-    } 
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
-
-// Route to get a specific booking by ID
-router.get('/:id', authenticate, async (req, res) => {
-  try {
-    const isAdmin = req.user.admin;
-    const booking = await getBookingById(req.params.id, req.user._id, isAdmin);
-    if (!booking) {
-      return res.status(404).json({ message: 'Booking not found' });
-    }
-    res.json(booking);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
-
-// Route to create a new booking
-router.post('/new-booking', authenticate, async (req, res) => {
-  const { vanID, startDate, endDate } = req.body;
-  try {
-    const newBooking = await createBooking(vanID, startDate, endDate, req);
-    res.status(201).json(newBooking);
-  } catch (error) {
-    res.status(400).json({ message: error.message });
-  }
-});
-
-// Route to update a booking by ID
-router.put('/:id', authenticate, async (req, res) => {
-  try {
-    if (!req.user.admin) {
-      return res.status(403).json({ message: 'Unauthorized' });
-    }
-
-    const updatedBooking = await updateBooking(req.params.id, req.body, req.user.admin);
-    res.json(updatedBooking);
-
-  } catch (error) {
-    res.status(400).json({ message: error.message });
-  }
-});
-
-// Route to delete a booking by ID
-router.delete('/:id', authenticate, async (req, res) => {
-  // Both admin and regular user can delete a booking
-  // Regular user can only delete their own booking
-  try {
-    const booking = await getBookingById(req.params.id, req.user._id, req.user.admin);
-    if (!booking) {
-      return res.status(404).json({ message: 'Booking not found' });
-    }
-
-    if (!req.user.admin && booking.user.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'Unauthorized' });
-    }
-
-    const deletedBooking = await deleteBooking(req.params.id);
-    res.json(deletedBooking);
-
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
-
-// Route to search bookings (admin only)
-router.get('/search', authenticate, async (req, res) => {
-  try {
-    if (!req.user.admin) {
-      return res.status(403).json({ message: 'Unauthorized' });
-    }
-
-    const query = req.query.q;
-    if (!query) {
-      return res.status(400).json({ message: 'Missing query parameter' });
-    }
-
-    const bookings = await searchBookings(query, req.user.admin);
     res.json(bookings);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error(error);
+    res.status(500).json({ message: "An error occurred during the search" });
   }
 });
 
-function authenticate(req, res, next) {
-  const token = req.header('Authorization')?.replace('Bearer ', '');
-  if (!token) {
-    return res.status(401).json({ message: 'Please authenticate' });
-  }
 
+
+// Get my bookings (for regular user to view their bookings)
+router.get('/my-bookings', authenticate, async (req, res) => {
+  const bookings = await Booking.find({ user: req.user._id })
+  res.json(bookings)
+})
+
+// Create new booking (user, to use userID from token)
+router.post('/new-booking', authenticate, async (req, res) => {
+  const { vanID, startDate, endDate } = req.body
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded;
-    next();
+    const newBooking = await createBooking(vanID, startDate, endDate, req)
+    res.status(201).json(newBooking)
   } catch (error) {
-    res.status(401).json({ message: 'Invalid token' });
+    res.status(400).json({ message: error.message })
   }
-}
+})
 
-module.exports = router;
+// Create new booking (admin, to have admin enter in userID)
+router.post('/new-booking/admin', authenticate, async (req, res) => {
+  if (!req.user.admin) {
+    return res.status(403).json({ message: 'Unauthorized' })
+  }
 
+  const { vanID, startDate, endDate, userID } = req.body
+  const adminReq = { ...req, user: { _id: userID } }
+  try {
+    const newBooking = await createBooking(vanID, startDate, endDate, adminReq)
+    res.status(201).json(newBooking)
+  } catch (error) {
+    res.status(400).json({ message: error.message })
+  }
+})
+
+// Update booking by ID (admin only)
+router.put('/admin/:id', authenticate, async (req, res) => {
+  if (!req.user.admin) {
+    return res.status(403).json({ message: 'Unauthorized' })
+  }
+
+  // Check if the vanID, startDate, or endDate have been updated
+  const { vanID, startDate, endDate } = req.body
+  if (vanID || startDate || endDate) {
+    try {
+      // Recalculate the total price based on the updated information
+      const totalPrice = await calculateTotalPrice(
+        vanID || booking.van,
+        startDate || booking.startDate,
+        endDate || booking.endDate
+      )
+      req.body.totalPrice = totalPrice
+    } catch (error) {
+      return res
+        .status(400)
+        .json({ message: 'Error updating booking: ' + error.message })
+    }
+  }
+
+  const updatedBooking = await Booking.findByIdAndUpdate(
+    req.params.id,
+    req.body,
+    { new: true }
+  )
+  res.json(updatedBooking)
+})
+
+// Delete booking by ID (user, regular user can only delete their bookings)
+router.delete('/:id', authenticate, async (req, res) => {
+  const booking = await Booking.findOne({
+    _id: req.params.id,
+    user: req.user._id,
+  })
+  if (!booking) {
+    return res.status(404).json({ message: `Booking ${req.params.id} not found` })
+  }
+
+  await booking.deleteOne()
+  res.json({ message: `Booking ${req.params.id} deleted successfully` })
+})
+
+// Delete booking by ID (admin, can delete any booking).
+router.delete('/admin/:id', authenticate, async (req, res) => {
+  if (!req.user.admin) {
+    return res.status(403).json({ message: 'Unauthorized' })
+  }
+
+  const booking = await Booking.findById(req.params.id)
+  if (!booking) {
+    return res.status(404).json({ message: `Booking ${req.params.id} not found` })
+  }
+
+  await booking.deleteOne()
+  res.json({ message: `Booking ${req.params.id} deleted successfully` })
+})
+
+module.exports = router
