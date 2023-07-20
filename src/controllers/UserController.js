@@ -6,6 +6,26 @@ const mongoose = require("mongoose");
 
 const { User } = require("../models/UserModel");
 
+// Middleware function to authenticate the user making the request.
+// Verifies the JWT from the Authorization header and attaches the user to the request object.
+async function authenticate(req, res, next) {
+  try {
+    const token = req.header("Authorization").replace("Bearer ", "");
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findOne({ _id: decoded._id });
+    if (!user) {
+      throw new Error();
+    }
+    req.user = user;
+    next();
+  } catch (e) {
+    res.status(401).json({ message: "Please authenticate" });
+  }
+}
+
+// GET all users.
+// This endpoint is accessible only to admin users.
+// No query parameters are required.
 router.get("/all", authenticate, async (req, res) => {
   if (!req.user.admin) {
     return res.status(403).json({ message: "Unauthorized" });
@@ -19,16 +39,9 @@ router.get("/all", authenticate, async (req, res) => {
   res.json(users);
 });
 
-// Queries for /search routes below:
-
-// By firstName: http://localhost:3000/users/search?q=John
-// By lastName: http://localhost:3000/users/search?q=Doe
-// By email: http://localhost:3000/users/search?q=john@email.com
-// By address: http://localhost:3000/users/search?q=123 Fake Street
-// By license (number): http://localhost:3000/users/search?q=12345678
-// By dob (date string): http://localhost:3000/users/search?q=1991-03-22
-// By _id (MongoDB ObjectId): http://localhost:3000/users/search?q=<ObjectID>
-
+// GET users by search.
+// Admin users can search for users by firstName, lastName, email, address, license, dob, or _id.
+// The query is passed as a URL parameter like so: /search?q=<search_term>.
 router.get("/search", authenticate, async (req, res) => {
   if (!req.user.admin) {
     return res.status(403).json({ message: "Unauthorized" });
@@ -80,6 +93,9 @@ router.get("/search", authenticate, async (req, res) => {
   }
 });
 
+// POST to create an account.
+// Expects the following fields in the request body: firstName, lastName, email, password, dob, address, license, admin.
+// Returns the new user (excluding the password).
 router.post("/create-account", async (req, res) => {
   const existingUser = await User.findOne({ email: req.body.email });
   if (existingUser) {
@@ -105,6 +121,9 @@ router.post("/create-account", async (req, res) => {
   res.json(savedUser);
 });
 
+// POST to sign in.
+// Expects the following fields in the request body: email, password.
+// Returns a JSON Web Token for the authenticated user.
 router.post("/sign-in", async (req, res) => {
   const user = await User.findOne({ email: req.body.email });
   if (!user) {
@@ -122,16 +141,18 @@ router.post("/sign-in", async (req, res) => {
   res.json({ token: token });
 });
 
+// PUT to update a user.
+// This route is authenticated.
+// Expects any updatable fields in the request body excluding password.
+// Returns the updated user (excluding the password).
 router.put("/update", authenticate, async (req, res) => {
   // validate req.body here, return a 400 error if validation fails
 
   const update = { ...req.body };
   if (update.password) {
-    return res
-      .status(400)
-      .json({
-        message: "Password updates are not allowed through this route.",
-      });
+    return res.status(400).json({
+      message: "Password updates are not allowed through this route.",
+    });
   }
 
   let user;
@@ -152,6 +173,10 @@ router.put("/update", authenticate, async (req, res) => {
   res.json(user);
 });
 
+// PUT to change a user's password.
+// This route is authenticated.
+// Expects the following fields in the request body: oldPassword, newPassword.
+// Returns a success message if the password is changed successfully.
 router.put("/change-password", authenticate, async (req, res) => {
   // Validate req.body here, make sure it has `oldPassword` and `newPassword`
 
@@ -178,8 +203,90 @@ router.put("/change-password", authenticate, async (req, res) => {
   res.json({ message: "Password changed successfully" });
 });
 
+// PUT to change a user's password by admin.
+// This route is authenticated and only accessible to admin users.
+// Expects the following field in the request body: newPassword.
+// The userId of the user to update is passed in the URL like so: /admin/change-password/<userId>.
+// Returns a success message if the password is updated successfully.
+router.put("/admin/change-password/:userId", authenticate, async (req, res) => {
+  // First check if the authenticated user is an admin
+  if (!req.user.admin) {
+    return res.status(403).json({ message: "Unauthorized" });
+  }
 
+  // Make sure newPassword is provided
+  const { newPassword } = req.body;
+  if (!newPassword) {
+    return res.status(400).json({ message: "New password is required" });
+  }
 
+  const userIdToUpdate = req.params.userId;
+
+  let userToUpdate;
+  try {
+    userToUpdate = await User.findById(userIdToUpdate);
+    if (!userToUpdate) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Hash the new password before saving
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+    userToUpdate.password = hashedPassword;
+    await userToUpdate.save();
+
+    res.json({ message: "Password updated successfully" });
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ message: "An error occurred during the update" });
+  }
+});
+
+// PUT to update a user by admin.
+// This route is authenticated and only accessible to admin users.
+// Expects any updatable fields in the request body excluding password.
+// The userId of the user to update is passed in the URL like so: /admin/update/<userId>.
+// Returns the updated user (excluding the password).
+router.put("/admin/update/:userId", authenticate, async (req, res) => {
+  // First check if the authenticated user is an admin
+  if (!req.user.admin) {
+    return res.status(403).json({ message: "Unauthorized" });
+  }
+
+  const userIdToUpdate = req.params.userId;
+  const update = { ...req.body };
+
+  // Prevent password updates through this route
+  if (update.password) {
+    return res.status(400).json({
+      message: "Password updates are not allowed through this route.",
+    });
+  }
+
+  let userToUpdate;
+  try {
+    userToUpdate = await User.findByIdAndUpdate(userIdToUpdate, update, {
+      new: true,
+    }).select("-password");
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ message: "An error occurred during the update" });
+  }
+
+  if (!userToUpdate) {
+    return res.status(404).json({ message: "User not found" });
+  }
+
+  res.json(userToUpdate);
+});
+
+// DELETE a user.
+// This route is authenticated.
+// Deletes the user associated with the authenticated token.
+// Returns a success message if the user is deleted successfully.
 router.delete("/delete", authenticate, async (req, res) => {
   const user = await User.findByIdAndDelete(req.user._id);
   if (!user) {
@@ -189,22 +296,22 @@ router.delete("/delete", authenticate, async (req, res) => {
   res.json({ message: "Account deleted successfully" });
 });
 
-
-
-
-async function authenticate(req, res, next) {
-  try {
-    const token = req.header("Authorization").replace("Bearer ", "");
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findOne({ _id: decoded._id });
-    if (!user) {
-      throw new Error();
-    }
-    req.user = user;
-    next();
-  } catch (e) {
-    res.status(401).json({ message: "Please authenticate" });
+// DELETE a user by admin.
+// This route is authenticated and only accessible to admin users.
+// The userId of the user to delete is passed in the URL like so: /admin/delete/<userId>.
+// Returns a success message if the user is deleted successfully.
+router.delete("/admin/delete/:userId", authenticate, async (req, res) => {
+  if (!req.user.admin) {
+    return res.status(403).json({ message: "Unauthorized" });
   }
-}
+
+  const userToDelete = await User.findById(req.params.userId);
+  if (!userToDelete) {
+    return res.status(404).json({ message: "User not found" });
+  }
+
+  await User.findByIdAndDelete(req.params.userId);
+  res.json({ message: "User deleted successfully" });
+});
 
 module.exports = router;
