@@ -267,35 +267,25 @@ router.put('/:id', authenticate, async (req, res) => {
 
 // Route to delete a booking by ID
 router.delete('/:id', authenticate, async (req, res) => {
+  // Both admin and regular user can delete a booking
+  // Regular user can only delete their own booking
   try {
-    const booking = await deleteBooking(req.params.id, req.user._id, req.user.admin);
-    res.json(booking);
+    const booking = await getBookingById(req.params.id, req.user._id, req.user.admin);
+    if (!booking) {
+      return res.status(404).json({ message: 'Booking not found' });
+    }
+
+    if (!req.user.admin && booking.user.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+
+    const deletedBooking = await deleteBooking(req.params.id);
+    res.json(deletedBooking);
+
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 });
-
-//// Route to delete a booking by ID
-//router.delete('/:id', authenticate, async (req, res) => {
-//  // Both admin and regular user can delete a booking
-//  // Regular user can only delete their own booking
-//  try {
-//    const booking = await getBookingById(req.params.id, req.user._id, req.user.admin);
-//    if (!booking) {
-//      return res.status(404).json({ message: 'Booking not found' });
-//    }
-//
-//    if (!req.user.admin && booking.user.toString() !== req.user._id.toString()) {
-//      return res.status(403).json({ message: 'Unauthorized' });
-//    }
-//
-//    const deletedBooking = await deleteBooking(req.params.id);
-//    res.json(deletedBooking);
-//
-//  } catch (error) {
-//    res.status(500).json({ message: error.message });
-//  }
-//});
 
 // Route to search bookings (admin only)
 router.get('/search', authenticate, async (req, res) => {
