@@ -41,10 +41,12 @@ app.use(express.urlencoded({ extended: true }));
 // Routes
 const userController = require("./controllers/UserController");
 const vanController = require("./controllers/VanController");
+const bookingController = require("./controllers/bookingController");
 const reviewRouter = require('./controllers/ReviewController');
 
 app.use("/users", userController);
 app.use("/vans", vanController);
+app.use("/bookings", bookingController);
 app.use('/reviews', reviewRouter);
 
 const mongoose = require("mongoose");
