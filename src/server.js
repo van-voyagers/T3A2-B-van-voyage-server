@@ -41,9 +41,11 @@ app.use(express.urlencoded({ extended: true }));
 // Routes
 const userController = require("./controllers/UserController");
 const vanController = require("./controllers/VanController");
+const reviewRouter = require('./controllers/ReviewController');
 
 app.use("/users", userController);
 app.use("/vans", vanController);
+app.use('/reviews', reviewRouter);
 
 const mongoose = require("mongoose");
 var databaseURL = "";
