@@ -1,162 +1,169 @@
-const express = require("express");
-const jwt = require("jsonwebtoken");
-const router = express.Router();
-const mongoose = require("mongoose");
+const express = require('express')
+const jwt = require('jsonwebtoken')
+const router = express.Router()
+const mongoose = require('mongoose')
 
-const { Van } = require("../models/VanModel");
-const { User } = require("../models/UserModel");
+const { Van } = require('../models/VanModel')
+const { User } = require('../models/UserModel')
 
 // Middleware function to authenticate the user making the request.
 // Verifies the JWT from the Authorization header and attaches the user to the request object.
 async function authenticate(req, res, next) {
   try {
-    const header = req.header("Authorization");
+    const header = req.header('Authorization')
 
     if (!header) {
-      return res.status(401).json({ message: "Missing authorization header" });
+      return res.status(401).json({ message: 'Missing authorization header' })
     }
 
-    const token = header.replace("Bearer ", "");
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const token = header.replace('Bearer ', '')
+    const decoded = jwt.verify(token, process.env.JWT_SECRET)
 
-    const user = await User.findOne({ _id: decoded._id });
+    const user = await User.findOne({ _id: decoded._id })
     if (!user) {
-      return res.status(401).json({ message: "User not found" });
+      return res.status(401).json({ message: 'User not found' })
     }
 
-    req.user = user;
-    next();
+    req.user = user
+    next()
   } catch (e) {
-    res.status(401).json({ message: "Error authenticating: " + e.message });
+    res.status(401).json({ message: 'Error authenticating: ' + e.message })
   }
 }
 
-
 // GET all vans.
-// This endpoint is accessible only to admin users. 
+// This endpoint is accessible only to admin users.
 // No query parameters are required.
-router.get("/all", authenticate, async (req, res) => {
+router.get('/all', authenticate, async (req, res) => {
   if (!req.user.admin) {
-    return res.status(403).json({ message: "Unauthorized" });
+    return res.status(403).json({ message: 'Unauthorized' })
   }
 
-  const vans = await Van.find();
+  const vans = await Van.find()
   if (!vans) {
-    return res.status(400).json({ message: "No vans found" });
+    return res.status(400).json({ message: 'No vans found' })
   }
 
-  res.json(vans);
-});
-
+  res.json(vans)
+})
 
 // GET vans by search term.
 // Admin users can search for vans by vanName or pricePerDay.
 // The query is passed as a URL parameter like so: /search?q=<search_term>.
-router.get("/search", authenticate, async (req, res) => {
+router.get('/search', authenticate, async (req, res) => {
   if (!req.user.admin) {
-    return res.status(403).json({ message: "Unauthorized" });
+    return res.status(403).json({ message: 'Unauthorized' })
   }
 
-  const query = req.query.q;
+  const query = req.query.q
   if (!query) {
-    return res.status(400).json({ message: "Missing query parameter" });
+    return res.status(400).json({ message: 'Missing query parameter' })
   }
 
   // Define search criteria for vanName field and pricePerDay
   const criteria = isNaN(query)
-    ? { vanName: { $regex: new RegExp(query, "i") } } // if query is non-numeric, search by vanName
-    : { pricePerDay: query }; // if query is numeric, search by pricePerDay
+    ? { vanName: { $regex: new RegExp(query, 'i') } } // if query is non-numeric, search by vanName
+    : { pricePerDay: query } // if query is numeric, search by pricePerDay
 
   try {
-    const vans = await Van.find(criteria);
+    const vans = await Van.find(criteria)
 
     if (vans.length === 0) {
-      return res.status(404).json({ message: "No vans found" });
+      return res.status(404).json({ message: 'No vans found' })
     }
 
-    res.json(vans);
+    res.json(vans)
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "An error occurred during the search" });
+    console.error(err)
+    res.status(500).json({ message: 'An error occurred during the search' })
   }
-});
-
+})
 
 // POST a new van.
 // Only admin users can access this endpoint.
-// Requires `vanName` and `pricePerDay` in the request body. 
-router.post("/", authenticate, async (req, res) => {
+// Requires `vanName` and `pricePerDay` in the request body.
+router.post('/', authenticate, async (req, res) => {
   if (!req.user.admin) {
-    return res.status(403).json({ message: "Unauthorized" });
+    return res.status(403).json({ message: 'Unauthorized' })
   }
 
-  const { vanName, pricePerDay } = req.body;
+  const { vanName, pricePerDay } = req.body
   if (!vanName || !pricePerDay) {
-    return res.status(400).json({ message: "Missing vanName or pricePerDay in the request body" });
+    return res
+      .status(400)
+      .json({ message: 'Missing vanName or pricePerDay in the request body' })
   }
 
-  const newVan = new Van({ vanName, pricePerDay });
+  const newVan = new Van({ vanName, pricePerDay })
 
   try {
-    const savedVan = await newVan.save();
-    res.status(201).json(savedVan);
+    const savedVan = await newVan.save()
+    res.status(201).json(savedVan)
   } catch (e) {
-    console.error(e);
-    res.status(500).json({ message: "An error occurred while trying to save the van" });
+    console.error(e)
+    res
+      .status(500)
+      .json({ message: 'An error occurred while trying to save the van' })
   }
-});
-
+})
 
 // PUT (update) a van.
 // Only admin users can access this endpoint.
 // Updates the `vanName` and/or `pricePerDay` of the van specified by the `id` route parameter.
-router.put("/:id", authenticate, async (req, res) => {
+router.put('/:id', authenticate, async (req, res) => {
   if (!req.user.admin) {
-    return res.status(403).json({ message: "Unauthorized" });
+    return res.status(403).json({ message: 'Unauthorized' })
   }
 
-  const { vanName, pricePerDay } = req.body;
+  const { vanName, pricePerDay } = req.body
   if (!vanName && !pricePerDay) {
-    return res.status(400).json({ message: "Missing update fields in the request body" });
+    return res
+      .status(400)
+      .json({ message: 'Missing update fields in the request body' })
   }
 
   try {
-    const updatedVan = await Van.findByIdAndUpdate(req.params.id, { vanName, pricePerDay }, { new: true });
+    const updatedVan = await Van.findByIdAndUpdate(
+      req.params.id,
+      { vanName, pricePerDay },
+      { new: true }
+    )
 
     if (!updatedVan) {
-      return res.status(404).json({ message: "Van not found to update" });
+      return res.status(404).json({ message: 'Van not found to update' })
     }
 
-    res.json(updatedVan);
+    res.json(updatedVan)
   } catch (e) {
-    console.error(e);
-    res.status(500).json({ message: "An error occurred while trying to update the van" });
+    console.error(e)
+    res
+      .status(500)
+      .json({ message: 'An error occurred while trying to update the van' })
   }
-});
-
+})
 
 // DELETE a van.
 // Only admin users can access this endpoint.
 // Deletes the van specified by the `id` route parameter.
-router.delete("/:id", authenticate, async (req, res) => {
+router.delete('/:id', authenticate, async (req, res) => {
   if (!req.user.admin) {
-    return res.status(403).json({ message: "Unauthorized" });
+    return res.status(403).json({ message: 'Unauthorized' })
   }
 
   try {
-    const deletedVan = await Van.findByIdAndDelete(req.params.id);
+    const deletedVan = await Van.findByIdAndDelete(req.params.id)
 
     if (!deletedVan) {
-      return res.status(404).json({ message: "Van not found to delete" });
+      return res.status(404).json({ message: 'Van not found to delete' })
     }
 
-    res.json({ message: "Van successfully deleted" });
+    res.json({ message: 'Van successfully deleted' })
   } catch (e) {
-    console.error(e);
-    res.status(500).json({ message: "An error occurred while trying to delete the van" });
+    console.error(e)
+    res
+      .status(500)
+      .json({ message: 'An error occurred while trying to delete the van' })
   }
-});
+})
 
-
-module.exports = router;
-
+module.exports = router

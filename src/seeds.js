@@ -156,5 +156,3 @@ databaseConnector(databaseURL)
     mongoose.connection.close();
     console.log("DB seed connection closed.");
   });
-
-
