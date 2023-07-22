@@ -177,7 +177,7 @@ router.post('/new-booking', authenticate, async (req, res) => {
 })
 
 // Create new booking (admin, to have admin enter in userID)
-router.post('/new-booking/admin', authenticate, async (req, res) => {
+router.post('/admin/new-booking', authenticate, async (req, res) => {
   if (!req.user.admin) {
     return res.status(403).json({ message: 'Unauthorized' })
   }
