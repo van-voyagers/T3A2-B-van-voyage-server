@@ -179,7 +179,17 @@ router.get("/admin/search", authenticate, async (req, res) => {
   }
 });
 
+router.get('/vans', async (req, res) => {
+  const vans = await Van.find()
+  res.json(vans)
+})
 
+
+// To be passed to client to retrieve van information after selecting from dropdown
+router.get('/van/:vanID', async (req, res) => {
+  const bookings = await Booking.find({ van: req.params.vanID })
+  res.json(bookings)
+})
 
 // Get my bookings (for regular user to view their bookings)
 router.get('/my-bookings', authenticate, async (req, res) => {
