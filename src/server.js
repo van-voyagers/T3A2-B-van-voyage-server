@@ -29,7 +29,7 @@ app.use(
 // array of origins for CORS configuration.
 const cors = require("cors");
 var corsOptions = {
-  origin: ["http://localhost:5000", "https://deployedApp.com"],
+  origin: ["http://localhost:3001", "https://deployedApp.com"],
   optionsSuccessStatus: 200,
 };
 app.use(cors(corsOptions));
