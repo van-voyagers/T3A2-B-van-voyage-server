@@ -90,6 +90,28 @@ async function createBooking(vanID, startDate, endDate, req) {
       totalPrice: totalPrice,
     })
 
+    // Check if the van is available for the given dates
+    const van = await Van.findById(vanID);
+    if (!van) {
+      throw new Error("The specified van does not exist");
+    }
+
+    const isVanAvailable = van.bookedDates.every((booking) => {
+      const bookedStart = new Date(booking.startDate);
+      const bookedEnd = new Date(booking.endDate);
+      const newStart = new Date(startDate);
+      const newEnd = new Date(endDate);
+      return newStart > bookedEnd || newEnd < bookedStart;
+    });
+
+    if (!isVanAvailable) {
+      throw new Error("The van is not available for the selected dates");
+    }
+
+    // Update the van's bookedDates field with the new booking
+    van.bookedDates.push({ startDate, endDate });
+    await van.save();
+    
     await booking.save()
     return booking
   } catch (error) {
@@ -198,31 +220,77 @@ router.put('/admin/:id', authenticate, async (req, res) => {
     return res.status(403).json({ message: 'Unauthorized' })
   }
 
-  // Check if the vanID, startDate, or endDate have been updated
-  const { vanID, startDate, endDate } = req.body
-  if (vanID || startDate || endDate) {
-    try {
-      // Recalculate the total price based on the updated information
-      const totalPrice = await calculateTotalPrice(
-        vanID || booking.van,
-        startDate || booking.startDate,
-        endDate || booking.endDate
-      )
-      req.body.totalPrice = totalPrice
-    } catch (error) {
-      return res
-        .status(400)
-        .json({ message: 'Error updating booking: ' + error.message })
+  try {
+    const booking = await Booking.findById(req.params.id);
+    if (!booking) {
+      return res.status(404).json({ message: `Booking ${req.params.id} not found` });
     }
-  }
 
-  const updatedBooking = await Booking.findByIdAndUpdate(
-    req.params.id,
-    req.body,
-    { new: true }
-  )
-  res.json(updatedBooking)
-})
+    // Save the original van ID, startDate, and endDate
+    const originalVanID = booking.van;
+    const originalStartDate = booking.startDate;
+    const originalEndDate = booking.endDate;
+
+    // Check if the vanID, startDate, or endDate have been updated
+    const { vanID, startDate, endDate } = req.body;
+
+    // If the van ID, startDate, or endDate has been updated, check and update the van's bookedDates field
+    if (vanID || startDate || endDate) {
+      const van = await Van.findById(originalVanID);
+
+      // Remove the original booking from the van's bookedDates
+      van.bookedDates = van.bookedDates.filter(
+        (booking) =>
+          !(
+            booking.startDate.toString() === originalStartDate.toString() &&
+            booking.endDate.toString() === originalEndDate.toString()
+          )
+      );
+
+      // Check if the updated booking dates are available
+      const isVanAvailable = van.bookedDates.every((booking) => {
+        const bookedStart = new Date(booking.startDate);
+        const bookedEnd = new Date(booking.endDate);
+        const newStart = new Date(startDate || originalStartDate);
+        const newEnd = new Date(endDate || originalEndDate);
+        return newStart >= bookedEnd || newEnd <= bookedStart;
+      });
+
+      if (!isVanAvailable) {
+        return res.status(400).json({ message: 'The van is not available for the selected dates' });
+      }
+
+      // Add the updated booking to the van's bookedDates
+      van.bookedDates.push({
+        startDate: startDate || originalStartDate,
+        endDate: endDate || originalEndDate,
+      });
+      await van.save();
+    }
+
+    // Recalculate the total price based on the updated information
+    const totalPrice = await calculateTotalPrice(
+      vanID || originalVanID,
+      startDate || originalStartDate,
+      endDate || originalEndDate
+    );
+
+    // Update the totalPrice field in the request body
+    req.body.totalPrice = totalPrice;
+
+    // Update the booking with the new information
+    const updatedBooking = await Booking.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true }
+    );
+
+    res.json(updatedBooking);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'An error occurred during the update' });
+  }
+});
 
 // Delete booking by ID (user, regular user can only delete their bookings)
 router.delete('/:id', authenticate, async (req, res) => {
