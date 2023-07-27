@@ -9,8 +9,11 @@ const UserSchema = new mongoose.Schema({
   address: String,
   license: Number,
   admin: Boolean,
+  phoneNumber: String,  // Updated field
 });
 
 const User = mongoose.model("User", UserSchema);
 
 module.exports = { User };
+
+

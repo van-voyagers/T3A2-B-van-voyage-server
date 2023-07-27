@@ -59,6 +59,7 @@ router.get("/search", authenticate, async (req, res) => {
       { lastName: { $regex: new RegExp(query, "i") } },
       { email: { $regex: new RegExp(query, "i") } },
       { address: { $regex: new RegExp(query, "i") } },
+      { phone: { $regex: new RegExp(query, "i") } }, // Added phone here
     ],
   };
 
@@ -93,6 +94,35 @@ router.get("/search", authenticate, async (req, res) => {
   }
 });
 
+
+// GET authenticated user details.
+router.get("/me", authenticate, async (req, res) => {
+  try {
+    // Exclude password from the result
+    const user = await User.findOne({ _id: req.user._id }).select("-password");
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    
+    // Format the user data according to the frontend's expectation
+    const formattedUser = {
+      name: user.firstName + ' ' + user.lastName,
+      dob: user.dob,
+      phone: user.phone,
+      email: user.email,
+      address: user.address,
+      driversLicense: user.license
+    }
+
+    res.json(formattedUser);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "An error occurred while fetching user details" });
+  }
+});
+
+
+
 // POST to create an account.
 // Expects the following fields in the request body: firstName, lastName, email, password, dob, address, license, admin.
 // Returns the new user (excluding the password).
@@ -115,6 +145,7 @@ router.post("/create-account", async (req, res) => {
     address: req.body.address,
     license: req.body.license,
     admin: req.body.admin,
+    phone: req.body.phone,  // Added phone here
   });
 
   const savedUser = await user.save();
@@ -208,40 +239,38 @@ router.put("/change-password", authenticate, async (req, res) => {
 // Expects the following field in the request body: newPassword.
 // The userId of the user to update is passed in the URL like so: /admin/change-password/<userId>.
 // Returns a success message if the password is updated successfully.
-router.put("/admin/change-password/:userId", authenticate, async (req, res) => {
+router.put("/admin/update/:userId", authenticate, async (req, res) => {
   // First check if the authenticated user is an admin
   if (!req.user.admin) {
     return res.status(403).json({ message: "Unauthorized" });
   }
 
-  // Make sure newPassword is provided
-  const { newPassword } = req.body;
-  if (!newPassword) {
-    return res.status(400).json({ message: "New password is required" });
-  }
-
   const userIdToUpdate = req.params.userId;
+  const update = { ...req.body };
+
+  // Prevent password updates through this route
+  if (update.password) {
+    return res.status(400).json({
+      message: "Password updates are not allowed through this route.",
+    });
+  }
 
   let userToUpdate;
   try {
-    userToUpdate = await User.findById(userIdToUpdate);
-    if (!userToUpdate) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    // Hash the new password before saving
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(newPassword, salt);
-
-    userToUpdate.password = hashedPassword;
-    await userToUpdate.save();
-
-    res.json({ message: "Password updated successfully" });
+    userToUpdate = await User.findByIdAndUpdate(userIdToUpdate, update, {
+      new: true,
+    }).select("-password");
   } catch (error) {
     return res
       .status(500)
       .json({ message: "An error occurred during the update" });
   }
+
+  if (!userToUpdate) {
+    return res.status(404).json({ message: "User not found" });
+  }
+
+  res.json(userToUpdate);
 });
 
 // PUT to update a user by admin.
