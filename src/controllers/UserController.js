@@ -317,13 +317,27 @@ router.put("/admin/update/:userId", authenticate, async (req, res) => {
 // Deletes the user associated with the authenticated token.
 // Returns a success message if the user is deleted successfully.
 router.delete("/delete", authenticate, async (req, res) => {
-  const user = await User.findByIdAndDelete(req.user._id);
-  if (!user) {
-    return res.status(400).json({ message: "User not found" });
-  }
+  try {
+    // Check if the req.user object exists
+    if (!req.user || !req.user._id) {
+      return res.status(400).json({ message: "No user associated with this token" });
+    }
 
-  res.json({ message: "Account deleted successfully" });
+    // Attempt to delete the user
+    const user = await User.findByIdAndDelete(req.user._id);
+
+    // Check if the user was deleted successfully
+    if (!user) {
+      return res.status(400).json({ message: "User not found or could not be deleted" });
+    }
+
+    res.json({ message: "Account deleted successfully" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "An error occurred while trying to delete the user" });
+  }
 });
+
 
 // DELETE a user by admin.
 // This route is authenticated and only accessible to admin users.
