@@ -59,7 +59,7 @@ router.get("/search", authenticate, async (req, res) => {
       { lastName: { $regex: new RegExp(query, "i") } },
       { email: { $regex: new RegExp(query, "i") } },
       { address: { $regex: new RegExp(query, "i") } },
-      { phone: { $regex: new RegExp(query, "i") } }, // Added phone here
+      { phoneNumber: { $regex: new RegExp(query, "i") } }, // Added phone here
     ],
   };
 
@@ -108,7 +108,7 @@ router.get("/me", authenticate, async (req, res) => {
     const formattedUser = {
       name: user.firstName + ' ' + user.lastName,
       dob: user.dob,
-      phone: user.phone,
+      phoneNumber: user.phoneNumber,
       email: user.email,
       address: user.address,
       driversLicense: user.license
@@ -145,7 +145,7 @@ router.post("/create-account", async (req, res) => {
     address: req.body.address,
     license: req.body.license,
     admin: req.body.admin,
-    phone: req.body.phone,  // Added phone here
+    phoneNumber: req.body.phoneNumber,  // Added phone here
   });
 
   const savedUser = await user.save();
