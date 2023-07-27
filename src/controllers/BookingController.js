@@ -50,7 +50,7 @@ async function calculateTotalPrice(vanID, startDate, endDate) {
     const days = Math.floor(Math.abs((end - start) / oneDay))
 
     // Calculate the totalPrice by multiplying days with van's pricePerDay
-    const totalPrice = days * van.pricePerDay
+    const totalPrice = (days + 1) * van.pricePerDay
 
     return totalPrice
   } catch (error) {
