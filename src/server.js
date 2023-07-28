@@ -29,7 +29,7 @@ app.use(
 // array of origins for CORS configuration.
 const cors = require("cors");
 var corsOptions = {
-  origin: ['http://localhost:3001', 'http://localhost:3000', 'http://localhost:4173', 'https://van-voyage-server.onrender.com', 'https://sparkling-sawine-917abf.netlify.app'],
+  origin: ['http://localhost:3001', 'http://localhost:3000', 'http://localhost:4173', 'https://van-voyage-server.onrender.com', 'https://sparkling-sawine-917abf.netlify.app', 'https://van-voyage.netlify.app'],
   optionsSuccessStatus: 200,
 };
 app.use(cors(corsOptions));
