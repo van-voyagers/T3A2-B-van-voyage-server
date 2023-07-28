@@ -127,6 +127,8 @@ router.get("/me", authenticate, async (req, res) => {
 // Expects the following fields in the request body: firstName, lastName, email, password, dob, address, license, admin.
 // Returns the new user (excluding the password).
 router.post("/create-account", async (req, res) => {
+  console.log(req.headers);
+  console.log(req.body);
   const existingUser = await User.findOne({ email: req.body.email });
   if (existingUser) {
     return res
