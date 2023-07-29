@@ -312,14 +312,23 @@ router.delete('/:id', authenticate, async (req, res) => {
   const booking = await Booking.findOne({
     _id: req.params.id,
     user: req.user._id,
-  })
+  });
   if (!booking) {
-    return res.status(404).json({ message: `Booking ${req.params.id} not found` })
+    return res.status(404).json({ message: `Booking ${req.params.id} not found` });
   }
 
-  await booking.deleteOne()
-  res.json({ message: `Booking ${req.params.id} deleted successfully` })
-})
+  const vanId = booking.van;
+  const van = await Van.findById(vanId);
+
+  if (!van) {
+    return res.status(404).json({ error: 'Van not found' });
+  }
+
+  await van.removeBookedDates(booking.startDate, booking.endDate); // Use the instance of Van document to call removeBookedDates
+  
+  await booking.deleteOne();
+  res.json({ message: `Booking ${req.params.id} deleted successfully` });
+});
 
 // Delete booking by ID (admin, can delete any booking).
 router.delete('/admin/:id', authenticate, async (req, res) => {
