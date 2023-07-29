@@ -81,6 +81,12 @@ async function createBooking(vanID, startDate, endDate, req) {
       throw new Error('The specified user does not exist')
     }
 
+    // Check if the van is available for the given dates
+    const van = await Van.findById(vanID);
+    if (!van) {
+      throw new Error('The specified van does not exist');
+    }
+    
     const totalPrice = await calculateTotalPrice(vanID, startDate, endDate)
     const booking = new Booking({
       user: userID, // Set the user ID obtained from the token
@@ -89,12 +95,6 @@ async function createBooking(vanID, startDate, endDate, req) {
       endDate: endDate,
       totalPrice: totalPrice,
     })
-
-    // Check if the van is available for the given dates
-    const van = await Van.findById(vanID);
-    if (!van) {
-      throw new Error("The specified van does not exist");
-    }
 
     const isVanAvailable = van.bookedDates.every((booking) => {
       const bookedStart = new Date(booking.startDate);
@@ -193,9 +193,14 @@ router.get('/van/:vanID', async (req, res) => {
 
 // Get my bookings (for regular user to view their bookings)
 router.get('/my-bookings', authenticate, async (req, res) => {
-  const bookings = await Booking.find({ user: req.user._id })
-  res.json(bookings)
-})
+  try {
+    const bookings = await Booking.find({ user: req.user._id }).populate('van', 'vanName');
+    res.json(bookings);
+  } catch (error) {
+    console.error('Error fetching user bookings:', error);
+    res.status(500).json({ message: 'An error occurred while fetching bookings' });
+  }
+});
 
 // Create new booking (user, to use userID from token)
 router.post('/new-booking', authenticate, async (req, res) => {
