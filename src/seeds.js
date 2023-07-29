@@ -115,12 +115,12 @@ async function createReviews(bookings) {
   const reviews = [
     {
       booking: bookings[0]._id,
-      rating: 4,
+      rating: 5,
       comment: "Great van, loved it!",
     },
     {
       booking: bookings[1]._id,
-      rating: 5,
+      rating: 4,
       comment: "Amazing experience, highly recommend.",
     },
     // more reviews...
