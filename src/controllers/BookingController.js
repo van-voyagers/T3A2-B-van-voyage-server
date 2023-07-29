@@ -194,7 +194,7 @@ router.get('/van/:vanID', async (req, res) => {
 // Get my bookings (for regular user to view their bookings)
 router.get('/my-bookings', authenticate, async (req, res) => {
   try {
-    const bookings = await Booking.find({ user: req.user._id }).populate('van', 'vanName');
+    const bookings = await Booking.find({ user: req.user._id }).populate('van', 'vanName pricePerDay');
     res.json(bookings);
   } catch (error) {
     console.error('Error fetching user bookings:', error);

@@ -92,8 +92,8 @@ async function createBookings(users, vans) {
     {
       user: users[0]._id,
       van: vans[0]._id,
-      startDate: new Date('2024-05-01'),
-      endDate: new Date('2024-05-10'),
+      startDate: new Date('2023-05-01'),
+      endDate: new Date('2023-05-10'),
       totalPrice: vans[0].pricePerDay * 10,
     },
     {
