@@ -156,24 +156,19 @@ databaseConnector(databaseURL)
   .catch((error) => console.log(`Some error occurred connecting to the database! It was: ${error}`))
   .then(async () => {
     if (process.env.WIPE == "true") {
-      const collections = await mongoose.connection.db
-        .listCollections()
-        .toArray();
-
-      collections
+      const collections = await mongoose.connection.db.listCollections().toArray();
+      const dropCollectionPromises = collections
         .map((collection) => collection.name)
-        .forEach(async (collectionName) => {
-          mongoose.connection.db.dropCollection(collectionName);
-        });
+        .map((collectionName) => mongoose.connection.db.dropCollection(collectionName));
+
+      await Promise.all(dropCollectionPromises);
       console.log("Old DB data deleted.");
     }
   })
   .then(createUsers)
-  .then((createdUsers) => {
-    return createVans().then((createdVans) => [createdUsers, createdVans]);
-  })
+  .then((createdUsers) => createVans().then((createdVans) => [createdUsers, createdVans]))
   .then(([createdUsers, createdVans]) => createBookings(createdUsers, createdVans))
-  .then((createdBookings) => createReviews(createdBookings))
+  .then(createReviews)
   .then(() => {
     mongoose.connection.close();
     console.log("DB seed connection closed.");
