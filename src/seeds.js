@@ -97,13 +97,33 @@ async function createBookings(users, vans) {
       totalPrice: vans[0].pricePerDay * 10,
     },
     {
+      user: users[0]._id,
+      van: vans[1]._id,
+      startDate: new Date('2024-05-01'),
+      endDate: new Date('2024-05-10'),
+      totalPrice: vans[1].pricePerDay * 10,
+    },
+    {
       user: users[1]._id,
       van: vans[1]._id,
       startDate: new Date('2024-06-01'),
       endDate: new Date('2024-06-15'),
       totalPrice: vans[1].pricePerDay * 15,
     },
-    // more bookings...
+    {
+      user: users[1]._id,
+      van: vans[1]._id,
+      startDate: new Date('2023-06-01'),
+      endDate: new Date('2023-06-15'),
+      totalPrice: vans[1].pricePerDay * 15,
+    },
+    {
+      user: users[1]._id,
+      van: vans[0]._id,
+      startDate: new Date('2023-07-01'),
+      endDate: new Date('2023-08-15'),
+      totalPrice: vans[0].pricePerDay * 46,
+    },
   ];
 
   const createdBookings = await Booking.insertMany(bookings);
