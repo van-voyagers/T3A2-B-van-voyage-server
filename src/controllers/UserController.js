@@ -98,20 +98,20 @@ router.get("/search", authenticate, async (req, res) => {
 // GET authenticated user details.
 router.get("/me", authenticate, async (req, res) => {
   try {
-    // Exclude password from the result
     const user = await User.findOne({ _id: req.user._id }).select("-password");
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
     
-    // Format the user data according to the frontend's expectation
+    // Return separate fields for first name and last name
     const formattedUser = {
-      name: user.firstName + ' ' + user.lastName,
+      firstName: user.firstName,
+      lastName: user.lastName,
       dob: user.dob,
       phoneNumber: user.phoneNumber,
       email: user.email,
       address: user.address,
-      driversLicense: user.license
+      driversLicense: user.license,
     }
 
     res.json(formattedUser);
@@ -120,6 +120,7 @@ router.get("/me", authenticate, async (req, res) => {
     res.status(500).json({ message: "An error occurred while fetching user details" });
   }
 });
+
 
 
 
