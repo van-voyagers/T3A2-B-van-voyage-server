@@ -52,47 +52,25 @@ router.get("/search", authenticate, async (req, res) => {
     return res.status(400).json({ message: "Missing query parameter" });
   }
 
-  // Define search criteria for string fields
   const stringCriteria = {
     $or: [
       { firstName: { $regex: new RegExp(query, "i") } },
       { lastName: { $regex: new RegExp(query, "i") } },
       { email: { $regex: new RegExp(query, "i") } },
       { address: { $regex: new RegExp(query, "i") } },
-      { phoneNumber: { $regex: new RegExp(query, "i") } }, // Added phone here
+      { driversLicense: { $regex: new RegExp(query, "i") } }, // license is now string
+      { phoneNumber: { $regex: new RegExp(query, "i") } }, 
     ],
   };
 
-  // For dob field, convert the query to a Date object
-  let dateQuery;
-  if (!isNaN(Date.parse(query))) {
-    dateQuery = new Date(query);
-    stringCriteria.$or.push({ dob: dateQuery });
-  }
-
-  // For _id field, check if the query is a valid MongoDB ObjectID
-  if (mongoose.Types.ObjectId.isValid(query)) {
-    stringCriteria.$or.push({ _id: query });
-  }
-
-  // For license field, if it's a number, add to search criteria
-  if (!isNaN(query)) {
-    stringCriteria.$or.push({ license: Number(query) });
-  }
-
   try {
-    const users = await User.find(stringCriteria).select("-password");
-
-    if (users.length === 0) {
-      return res.status(404).json({ message: "No users found" });
-    }
-
+    const users = await User.find(stringCriteria);
     res.json(users);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "An error occurred during the search" });
+    res.status(500).json({ message: err.message });
   }
 });
+
 
 
 // GET authenticated user details.
@@ -111,7 +89,7 @@ router.get("/me", authenticate, async (req, res) => {
       phoneNumber: user.phoneNumber,
       email: user.email,
       address: user.address,
-      driversLicense: user.license,
+      driversLicense: user.driversLicense, // updated field from user.license to user.driversLicense
     }
 
     res.json(formattedUser);
@@ -128,8 +106,6 @@ router.get("/me", authenticate, async (req, res) => {
 // Expects the following fields in the request body: firstName, lastName, email, password, dob, address, license, admin.
 // Returns the new user (excluding the password).
 router.post("/create-account", async (req, res) => {
-  console.log(req.headers);
-  console.log(req.body);
   const existingUser = await User.findOne({ email: req.body.email });
   if (existingUser) {
     return res
@@ -146,9 +122,9 @@ router.post("/create-account", async (req, res) => {
     password: hashedPassword,
     dob: req.body.dob,
     address: req.body.address,
-    license: req.body.license,
+    driversLicense: req.body.driversLicense,  // Updated field
     admin: req.body.admin,
-    phoneNumber: req.body.phoneNumber,  // Added phone here
+    phoneNumber: req.body.phoneNumber,  
   });
 
   const savedUser = await user.save();

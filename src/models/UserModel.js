@@ -7,7 +7,7 @@ const UserSchema = new mongoose.Schema({
   password: String,
   dob: Date,
   address: String,
-  license: Number,
+  driversLicense: String,
   admin: Boolean,
   phoneNumber: String,  // Updated field
 });

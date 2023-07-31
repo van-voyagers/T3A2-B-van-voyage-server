@@ -46,7 +46,7 @@ async function createUsers() {
       dob: new Date("1991-03-22"),
       address: "742 Evergreen Terrace, Springfield, Oregon",
       phoneNumber: "0412345679",
-      license: 12345678,
+      driversLicense: "12345678",  
       admin: true,
     },
     {
@@ -57,7 +57,7 @@ async function createUsers() {
       dob: new Date("1992-09-17"),
       address: "742 Evergreen Terrace, Springfield, Oregon",
       phoneNumber: "0412345678",
-      license: 12345678,
+      driversLicense: "12345679",  
       admin: false,
     },
   ];
