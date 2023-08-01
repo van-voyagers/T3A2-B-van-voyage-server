@@ -59,7 +59,7 @@ router.get("/search", authenticate, async (req, res) => {
       { email: { $regex: new RegExp(query, "i") } },
       { address: { $regex: new RegExp(query, "i") } },
       { driversLicense: { $regex: new RegExp(query, "i") } }, // license is now string
-      { phoneNumber: { $regex: new RegExp(query, "i") } }, 
+      { phoneNumber: { $regex: new RegExp(query, "i") } },
     ],
   };
 
@@ -71,8 +71,6 @@ router.get("/search", authenticate, async (req, res) => {
   }
 });
 
-
-
 // GET authenticated user details.
 router.get("/me", authenticate, async (req, res) => {
   try {
@@ -80,7 +78,7 @@ router.get("/me", authenticate, async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
-    
+
     // Return separate fields for first name and last name
     const formattedUser = {
       firstName: user.firstName,
@@ -90,45 +88,58 @@ router.get("/me", authenticate, async (req, res) => {
       email: user.email,
       address: user.address,
       driversLicense: user.driversLicense, // updated field from user.license to user.driversLicense
-    }
+    };
 
     res.json(formattedUser);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "An error occurred while fetching user details" });
+    res
+      .status(500)
+      .json({ message: "An error occurred while fetching user details" });
   }
 });
-
-
-
 
 // POST to create an account.
 // Expects the following fields in the request body: firstName, lastName, email, password, dob, address, license, admin.
 // Returns the new user (excluding the password).
 router.post("/create-account", async (req, res) => {
-  const existingUser = await User.findOne({ email: req.body.email });
-  if (existingUser) {
-    return res
-      .status(400)
-      .json({ message: "A user with this email already exists" });
+  try {
+    const existingUser = await User.findOne({ email: req.body.email });
+    if (existingUser) {
+      return res
+        .status(400)
+        .json({ message: "A user with this email already exists" });
+    }
+
+    const { password } = req.body;
+    if (password.length < 6) {
+      return res
+        .status(400)
+        .json({ message: "Password should be at least 6 characters long" });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const user = new User({
+      firstName: req.body.firstName,
+      lastName: req.body.lastName,
+      email: req.body.email,
+      password: hashedPassword,
+      dob: req.body.dob,
+      address: req.body.address,
+      driversLicense: req.body.driversLicense, // Updated field
+      admin: req.body.admin,
+      phoneNumber: req.body.phoneNumber,
+    });
+
+    const savedUser = await user.save();
+    res.json(savedUser);
+  } catch (error) {
+    console.error(error);
+    res
+      .status(500)
+      .json({ message: "An error occurred while creating the account." });
   }
-
-  const hashedPassword = await bcrypt.hash(req.body.password, 10);
-
-  const user = new User({
-    firstName: req.body.firstName,
-    lastName: req.body.lastName,
-    email: req.body.email,
-    password: hashedPassword,
-    dob: req.body.dob,
-    address: req.body.address,
-    driversLicense: req.body.driversLicense,  // Updated field
-    admin: req.body.admin,
-    phoneNumber: req.body.phoneNumber,  
-  });
-
-  const savedUser = await user.save();
-  res.json(savedUser);
 });
 
 // POST to sign in.
@@ -156,31 +167,31 @@ router.post("/sign-in", async (req, res) => {
 // Expects any updatable fields in the request body excluding password.
 // Returns the updated user (excluding the password).
 router.put("/update", authenticate, async (req, res) => {
-  // validate req.body here, return a 400 error if validation fails
-
-  const update = { ...req.body };
-  if (update.password) {
-    return res.status(400).json({
-      message: "Password updates are not allowed through this route.",
-    });
-  }
-
-  let user;
   try {
-    user = await User.findByIdAndUpdate(req.user._id, update, {
+    const update = { ...req.body };
+
+    // Prevent password updates through this route
+    if (update.password) {
+      return res.status(400).json({
+        message: "Password updates are not allowed through this route.",
+      });
+    }
+
+    let user = await User.findByIdAndUpdate(req.user._id, update, {
       new: true,
     }).select("-password");
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.json(user);
   } catch (error) {
+    console.error(error);
     return res
       .status(500)
       .json({ message: "An error occurred during the update" });
   }
-
-  if (!user) {
-    return res.status(404).json({ message: "User not found" });
-  }
-
-  res.json(user);
 });
 
 // PUT to change a user's password.
@@ -188,29 +199,37 @@ router.put("/update", authenticate, async (req, res) => {
 // Expects the following fields in the request body: oldPassword, newPassword.
 // Returns a success message if the password is changed successfully.
 router.put("/change-password", authenticate, async (req, res) => {
-  // Validate req.body here, make sure it has `oldPassword` and `newPassword`
+  try {
+    // Validate req.body here, make sure it has `oldPassword` and `newPassword`
+    const { oldPassword, newPassword } = req.body;
+    if (!(oldPassword && newPassword)) {
+      return res.status(400).json({ message: "Invalid request body" });
+    }
 
-  const user = await User.findById(req.user._id);
-  if (!user) {
-    return res.status(404).json({ message: "User not found" });
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const validPassword = await bcrypt.compare(oldPassword, user.password);
+    if (!validPassword) {
+      return res.status(401).json({ message: "Invalid current password" });
+    }
+
+    // Hash the new password before saving
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+    user.password = hashedPassword;
+    await user.save();
+
+    res.json({ message: "Password changed successfully" });
+  } catch (error) {
+    console.error(error);
+    return res
+      .status(500)
+      .json({ message: "An error occurred during the password change" });
   }
-
-  const validPassword = await bcrypt.compare(
-    req.body.oldPassword,
-    user.password
-  );
-  if (!validPassword) {
-    return res.status(401).json({ message: "Invalid current password" });
-  }
-
-  // Hash the new password before saving
-  const salt = await bcrypt.genSalt(10);
-  const hashedPassword = await bcrypt.hash(req.body.newPassword, salt);
-
-  user.password = hashedPassword;
-  await user.save();
-
-  res.json({ message: "Password changed successfully" });
 });
 
 // PUT to change a user's password by admin.
@@ -219,76 +238,37 @@ router.put("/change-password", authenticate, async (req, res) => {
 // The userId of the user to update is passed in the URL like so: /admin/change-password/<userId>.
 // Returns a success message if the password is updated successfully.
 router.put("/admin/update/:userId", authenticate, async (req, res) => {
-  // First check if the authenticated user is an admin
-  if (!req.user.admin) {
-    return res.status(403).json({ message: "Unauthorized" });
-  }
-
-  const userIdToUpdate = req.params.userId;
-  const update = { ...req.body };
-
-  // Prevent password updates through this route
-  if (update.password) {
-    return res.status(400).json({
-      message: "Password updates are not allowed through this route.",
-    });
-  }
-
-  let userToUpdate;
   try {
-    userToUpdate = await User.findByIdAndUpdate(userIdToUpdate, update, {
+    // First check if the authenticated user is an admin
+    if (!req.user.admin) {
+      return res.status(403).json({ message: "Unauthorized" });
+    }
+
+    const userIdToUpdate = req.params.userId;
+    const update = { ...req.body };
+
+    // Prevent password updates through this route
+    if (update.password) {
+      return res.status(400).json({
+        message: "Password updates are not allowed through this route.",
+      });
+    }
+
+    const userToUpdate = await User.findByIdAndUpdate(userIdToUpdate, update, {
       new: true,
     }).select("-password");
+
+    if (!userToUpdate) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.json(userToUpdate);
   } catch (error) {
+    console.error(error);
     return res
       .status(500)
       .json({ message: "An error occurred during the update" });
   }
-
-  if (!userToUpdate) {
-    return res.status(404).json({ message: "User not found" });
-  }
-
-  res.json(userToUpdate);
-});
-
-// PUT to update a user by admin.
-// This route is authenticated and only accessible to admin users.
-// Expects any updatable fields in the request body excluding password.
-// The userId of the user to update is passed in the URL like so: /admin/update/<userId>.
-// Returns the updated user (excluding the password).
-router.put("/admin/update/:userId", authenticate, async (req, res) => {
-  // First check if the authenticated user is an admin
-  if (!req.user.admin) {
-    return res.status(403).json({ message: "Unauthorized" });
-  }
-
-  const userIdToUpdate = req.params.userId;
-  const update = { ...req.body };
-
-  // Prevent password updates through this route
-  if (update.password) {
-    return res.status(400).json({
-      message: "Password updates are not allowed through this route.",
-    });
-  }
-
-  let userToUpdate;
-  try {
-    userToUpdate = await User.findByIdAndUpdate(userIdToUpdate, update, {
-      new: true,
-    }).select("-password");
-  } catch (error) {
-    return res
-      .status(500)
-      .json({ message: "An error occurred during the update" });
-  }
-
-  if (!userToUpdate) {
-    return res.status(404).json({ message: "User not found" });
-  }
-
-  res.json(userToUpdate);
 });
 
 // DELETE a user.
@@ -299,7 +279,9 @@ router.delete("/delete", authenticate, async (req, res) => {
   try {
     // Check if the req.user object exists
     if (!req.user || !req.user._id) {
-      return res.status(400).json({ message: "No user associated with this token" });
+      return res
+        .status(400)
+        .json({ message: "No user associated with this token" });
     }
 
     // Attempt to delete the user
@@ -307,16 +289,19 @@ router.delete("/delete", authenticate, async (req, res) => {
 
     // Check if the user was deleted successfully
     if (!user) {
-      return res.status(400).json({ message: "User not found or could not be deleted" });
+      return res
+        .status(400)
+        .json({ message: "User not found or could not be deleted" });
     }
 
     res.json({ message: "Account deleted successfully" });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "An error occurred while trying to delete the user" });
+    res
+      .status(500)
+      .json({ message: "An error occurred while trying to delete the user" });
   }
 });
-
 
 // DELETE a user by admin.
 // This route is authenticated and only accessible to admin users.
