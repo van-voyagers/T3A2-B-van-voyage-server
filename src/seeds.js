@@ -139,7 +139,7 @@ async function createReviews(bookings) {
       comment: "Great van, loved it!",
     },
     {
-      booking: bookings[1]._id,
+      booking: bookings[3]._id,
       rating: 4,
       comment: "Amazing experience, highly recommend.",
     },
