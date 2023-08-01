@@ -51,7 +51,7 @@ VanSchema.path('bookedDates').validate(function (bookedDates) {
   }
 
   return true
-}, 'Invalid booking duration: A booking must be more than 2 days and cannot exceed 3 weeks.')
+}, 'Invalid booking duration: A booking must be for at 2 days and cannot exceed 3 weeks.')
 
 // Compile the schema into a model.
 const Van = mongoose.model('Van', VanSchema)
