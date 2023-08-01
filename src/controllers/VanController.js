@@ -5,6 +5,7 @@ const mongoose = require('mongoose')
 
 const { Van } = require('../models/VanModel')
 const { User } = require('../models/UserModel')
+const { Booking } = require('../models/BookingModel') 
 
 // Middleware function to authenticate the user making the request.
 // Verifies the JWT from the Authorization header and attaches the user to the request object.
@@ -88,10 +89,18 @@ router.post('/', authenticate, async (req, res) => {
   }
 
   const { vanName, pricePerDay } = req.body
-  if (!vanName || !pricePerDay) {
+  if (
+    !vanName ||
+    typeof vanName !== 'string' ||
+    !pricePerDay ||
+    typeof pricePerDay !== 'number'
+  ) {
     return res
       .status(400)
-      .json({ message: 'Missing vanName or pricePerDay in the request body' })
+      .json({
+        message:
+          'Missing vanName or pricePerDay in the request body. vanName must be a string and pricePerDay must be a number > 0.',
+      })
   }
 
   const newVan = new Van({ vanName, pricePerDay })
@@ -116,7 +125,12 @@ router.put('/:id', authenticate, async (req, res) => {
   }
 
   const { vanName, pricePerDay } = req.body
-  if (!vanName && !pricePerDay) {
+  if (
+    !vanName ||
+    typeof vanName !== 'string' ||
+    !pricePerDay ||
+    typeof pricePerDay !== 'number'
+  ) {
     return res
       .status(400)
       .json({ message: 'Missing update fields in the request body' })
@@ -151,13 +165,17 @@ router.delete('/:id', authenticate, async (req, res) => {
   }
 
   try {
-    const deletedVan = await Van.findByIdAndDelete(req.params.id)
+    const vanToDelete = await Van.findById(req.params.id)
 
-    if (!deletedVan) {
-      return res.status(404).json({ message: 'Van not found to delete' })
+    if (!vanToDelete) {
+      return res.status(404).json({ message: 'Unable to delete Van: Van not found'})
     }
+    // Delete all bookings associated with the van
+    await Booking.deleteMany({ van: req.params.id });
 
-    res.json({ message: 'Van successfully deleted' })
+    await Van.findByIdAndDelete(req.params.id);
+
+    res.json({ message: 'Van and associated bookings successfully deleted' })
   } catch (e) {
     console.error(e)
     res
@@ -166,6 +184,4 @@ router.delete('/:id', authenticate, async (req, res) => {
   }
 })
 
-
-module.exports = router;
-
+module.exports = router
