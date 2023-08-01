@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose')
 
 const UserSchema = new mongoose.Schema({
   firstName: { type: String, trim: true },
@@ -8,7 +8,7 @@ const UserSchema = new mongoose.Schema({
     trim: true,
     required: true,
     unique: true,
-    match: [/\S+@\S+\.\S+/, "is invalid"],
+    match: [/\S+@\S+\.\S+/, 'is invalid'],
   },
   password: { type: String, required: true, minlength: 6 },
   dob: Date,
@@ -16,8 +16,8 @@ const UserSchema = new mongoose.Schema({
   driversLicense: { type: String, trim: true },
   admin: { type: Boolean, default: false },
   phoneNumber: { type: String, trim: true },
-});
+})
 
-const User = mongoose.model("User", UserSchema);
+const User = mongoose.model('User', UserSchema)
 
-module.exports = { User };
+module.exports = { User }

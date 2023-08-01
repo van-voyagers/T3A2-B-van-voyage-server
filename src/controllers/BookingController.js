@@ -69,6 +69,20 @@ async function createBooking(vanID, startDate, endDate, req) {
     // Retrieve userID from the token
     const userID = req.user._id
 
+    // Convert startDate and endDate to Date objects
+    const start = new Date(startDate)
+    const end = new Date(endDate)
+
+    // Validate dates
+    if (start > end) {
+      throw new Error('End date must be after the start date')
+    }
+
+    const currentDate = new Date()
+    if (start < currentDate || end < currentDate) {
+      throw new Error('Booking dates must be in the future')
+    }
+
     // Check if the van exists
     const vanExists = await Van.exists({ _id: vanID })
     if (!vanExists) {
@@ -82,11 +96,11 @@ async function createBooking(vanID, startDate, endDate, req) {
     }
 
     // Check if the van is available for the given dates
-    const van = await Van.findById(vanID);
+    const van = await Van.findById(vanID)
     if (!van) {
-      throw new Error('The specified van does not exist');
+      throw new Error('The specified van does not exist')
     }
-    
+
     const totalPrice = await calculateTotalPrice(vanID, startDate, endDate)
     const booking = new Booking({
       user: userID, // Set the user ID obtained from the token
@@ -97,21 +111,21 @@ async function createBooking(vanID, startDate, endDate, req) {
     })
 
     const isVanAvailable = van.bookedDates.every((booking) => {
-      const bookedStart = new Date(booking.startDate);
-      const bookedEnd = new Date(booking.endDate);
-      const newStart = new Date(startDate);
-      const newEnd = new Date(endDate);
-      return newStart > bookedEnd || newEnd < bookedStart;
-    });
+      const bookedStart = new Date(booking.startDate)
+      const bookedEnd = new Date(booking.endDate)
+      const newStart = new Date(startDate)
+      const newEnd = new Date(endDate)
+      return newStart > bookedEnd || newEnd < bookedStart
+    })
 
     if (!isVanAvailable) {
-      throw new Error("The van is not available for the selected dates");
+      throw new Error('The van is not available for the selected dates')
     }
 
     // Update the van's bookedDates field with the new booking
-    van.bookedDates.push({ startDate, endDate });
-    await van.save();
-    
+    van.bookedDates.push({ startDate, endDate })
+    await van.save()
+
     await booking.save()
     return booking
   } catch (error) {
@@ -136,54 +150,58 @@ router.get('/admin/all', authenticate, async (req, res) => {
 })
 
 // Query bookings by value (admin only)
-router.get("/admin/search", authenticate, async (req, res) => {
+router.get('/admin/search', authenticate, async (req, res) => {
   if (!req.user.admin) {
-    return res.status(403).json({ message: "Unauthorized" });
+    return res.status(403).json({ message: 'Unauthorized' })
   }
 
-  const query = req.query.q;
+  const query = req.query.q
   if (!query) {
-    return res.status(400).json({ message: "Missing query parameter" });
+    return res.status(400).json({ message: 'Missing query parameter' })
   }
 
-  const startDateQuery = new Date(query);
-  const endDateQuery = new Date(query);
-  endDateQuery.setDate(endDateQuery.getDate() + 1);
+  const dateRegex = /^\d{4}-\d{2}-\d{2}$/
+  if (!dateRegex.test(query)) {
+    return res.status(400).json({ message: 'Invalid date format in query' })
+  }
+
+  const startDateQuery = new Date(query)
+  const endDateQuery = new Date(query)
+  endDateQuery.setDate(endDateQuery.getDate() + 1)
 
   const dateCriteria = {
     $or: [
       { startDate: { $gte: startDateQuery, $lt: endDateQuery } },
       { endDate: { $gte: startDateQuery, $lt: endDateQuery } },
     ],
-  };
+  }
 
-  let bookings;
+  let bookings
   try {
     // Try exact match on ObjectId fields
     if (mongoose.Types.ObjectId.isValid(query)) {
       bookings = await Booking.find({
-        $or: [{ 'van': query }, { 'user': query }]
-      });
+        $or: [{ van: query }, { user: query }],
+      })
     } else {
-      bookings = await Booking.find(dateCriteria);
+      bookings = await Booking.find(dateCriteria)
     }
 
     if (bookings.length === 0) {
-      return res.status(404).json({ message: "No bookings found" });
+      return res.status(404).json({ message: 'No bookings found' })
     }
 
-    res.json(bookings);
+    res.json(bookings)
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "An error occurred during the search" });
+    console.error(error)
+    res.status(500).json({ message: 'An error occurred during the search' })
   }
-});
+})
 
 router.get('/vans', async (req, res) => {
   const vans = await Van.find()
   res.json(vans)
 })
-
 
 // To be passed to client to retrieve van information after selecting from dropdown
 router.get('/van/:vanID', async (req, res) => {
@@ -194,13 +212,18 @@ router.get('/van/:vanID', async (req, res) => {
 // Get my bookings (for regular user to view their bookings)
 router.get('/my-bookings', authenticate, async (req, res) => {
   try {
-    const bookings = await Booking.find({ user: req.user._id }).populate('van', 'vanName pricePerDay');
-    res.json(bookings);
+    const bookings = await Booking.find({ user: req.user._id }).populate(
+      'van',
+      'vanName pricePerDay'
+    )
+    res.json(bookings)
   } catch (error) {
-    console.error('Error fetching user bookings:', error);
-    res.status(500).json({ message: 'An error occurred while fetching bookings' });
+    console.error('Error fetching user bookings:', error)
+    res
+      .status(500)
+      .json({ message: 'An error occurred while fetching bookings' })
   }
-});
+})
 
 // Create new booking (user, to use userID from token)
 router.post('/new-booking', authenticate, async (req, res) => {
@@ -236,22 +259,24 @@ router.put('/admin/:id', authenticate, async (req, res) => {
   }
 
   try {
-    const booking = await Booking.findById(req.params.id);
+    const booking = await Booking.findById(req.params.id)
     if (!booking) {
-      return res.status(404).json({ message: `Booking ${req.params.id} not found` });
+      return res
+        .status(404)
+        .json({ message: `Booking ${req.params.id} not found` })
     }
 
     // Save the original van ID, startDate, and endDate
-    const originalVanID = booking.van;
-    const originalStartDate = booking.startDate;
-    const originalEndDate = booking.endDate;
+    const originalVanID = booking.van
+    const originalStartDate = booking.startDate
+    const originalEndDate = booking.endDate
 
     // Check if the vanID, startDate, or endDate have been updated
-    const { vanID, startDate, endDate } = req.body;
+    const { vanID, startDate, endDate } = req.body
 
     // If the van ID, startDate, or endDate has been updated, check and update the van's bookedDates field
     if (vanID || startDate || endDate) {
-      const van = await Van.findById(originalVanID);
+      const van = await Van.findById(originalVanID)
 
       // Remove the original booking from the van's bookedDates
       van.bookedDates = van.bookedDates.filter(
@@ -260,27 +285,29 @@ router.put('/admin/:id', authenticate, async (req, res) => {
             booking.startDate.toString() === originalStartDate.toString() &&
             booking.endDate.toString() === originalEndDate.toString()
           )
-      );
+      )
 
       // Check if the updated booking dates are available
       const isVanAvailable = van.bookedDates.every((booking) => {
-        const bookedStart = new Date(booking.startDate);
-        const bookedEnd = new Date(booking.endDate);
-        const newStart = new Date(startDate || originalStartDate);
-        const newEnd = new Date(endDate || originalEndDate);
-        return newStart >= bookedEnd || newEnd <= bookedStart;
-      });
+        const bookedStart = new Date(booking.startDate)
+        const bookedEnd = new Date(booking.endDate)
+        const newStart = new Date(startDate || originalStartDate)
+        const newEnd = new Date(endDate || originalEndDate)
+        return newStart >= bookedEnd || newEnd <= bookedStart
+      })
 
       if (!isVanAvailable) {
-        return res.status(400).json({ message: 'The van is not available for the selected dates' });
+        return res
+          .status(400)
+          .json({ message: 'The van is not available for the selected dates' })
       }
 
       // Add the updated booking to the van's bookedDates
       van.bookedDates.push({
         startDate: startDate || originalStartDate,
         endDate: endDate || originalEndDate,
-      });
-      await van.save();
+      })
+      await van.save()
     }
 
     // Recalculate the total price based on the updated information
@@ -288,47 +315,58 @@ router.put('/admin/:id', authenticate, async (req, res) => {
       vanID || originalVanID,
       startDate || originalStartDate,
       endDate || originalEndDate
-    );
+    )
 
     // Update the totalPrice field in the request body
-    req.body.totalPrice = totalPrice;
+    req.body.totalPrice = totalPrice
 
     // Update the booking with the new information
     const updatedBooking = await Booking.findByIdAndUpdate(
       req.params.id,
       req.body,
       { new: true }
-    );
+    )
 
-    res.json(updatedBooking);
+    res.json(updatedBooking)
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'An error occurred during the update' });
+    console.error(error)
+    res.status(500).json({ message: 'An error occurred during the update' })
   }
-});
+})
 
 // Delete booking by ID (user, regular user can only delete their bookings)
 router.delete('/:id', authenticate, async (req, res) => {
   const booking = await Booking.findOne({
     _id: req.params.id,
     user: req.user._id,
-  });
+  })
   if (!booking) {
-    return res.status(404).json({ message: `Booking ${req.params.id} not found` });
+    return res
+      .status(404)
+      .json({ message: `Booking ${req.params.id} not found` })
   }
 
-  const vanId = booking.van;
-  const van = await Van.findById(vanId);
+  const vanId = booking.van
+  const van = await Van.findById(vanId)
 
   if (!van) {
-    return res.status(404).json({ error: 'Van not found' });
+    return res.status(404).json({ error: 'Van not found' })
   }
 
-  await van.removeBookedDates(booking.startDate, booking.endDate); // Use the instance of Van document to call removeBookedDates
-  
-  await booking.deleteOne();
-  res.json({ message: `Booking ${req.params.id} deleted successfully` });
-});
+  // Remove the bookedDates associated with the booking from the van
+  van.bookedDates = van.bookedDates.filter((bookedDate) => {
+    return !(
+      bookedDate.startDate.getTime() ===
+        new Date(booking.startDate).getTime() &&
+      bookedDate.endDate.getTime() === new Date(booking.endDate).getTime()
+    )
+  })
+
+  await van.save() // save the changes to the van
+
+  await booking.deleteOne()
+  res.json({ message: `Booking ${req.params.id} deleted successfully` })
+})
 
 // Delete booking by ID (admin, can delete any booking).
 router.delete('/admin/:id', authenticate, async (req, res) => {
@@ -338,8 +376,28 @@ router.delete('/admin/:id', authenticate, async (req, res) => {
 
   const booking = await Booking.findById(req.params.id)
   if (!booking) {
-    return res.status(404).json({ message: `Booking ${req.params.id} not found` })
+    return res
+      .status(404)
+      .json({ message: `Booking ${req.params.id} not found` })
   }
+
+  const vanId = booking.van
+  const van = await Van.findById(vanId)
+
+  if (!van) {
+    return res.status(404).json({ error: 'Van not found' })
+  }
+
+  // Remove the bookedDates associated with the booking from the van
+  van.bookedDates = van.bookedDates.filter((bookedDate) => {
+    return !(
+      bookedDate.startDate.getTime() ===
+        new Date(booking.startDate).getTime() &&
+      bookedDate.endDate.getTime() === new Date(booking.endDate).getTime()
+    )
+  })
+
+  await van.save() // save the changes to the van
 
   await booking.deleteOne()
   res.json({ message: `Booking ${req.params.id} deleted successfully` })
