@@ -78,8 +78,12 @@ async function createBooking(vanID, startDate, endDate, req) {
       throw new Error("End date must be after the start date");
     }
 
+    // Create a new Date object representing the current date and time.
     const currentDate = new Date();
+
+    // Check if either the 'start' or 'end' date is in the past compared to the current date.
     if (start < currentDate || end < currentDate) {
+      // If any of the booking dates are in the past, throw an error.
       throw new Error("Booking dates must be in the future");
     }
 
@@ -101,20 +105,31 @@ async function createBooking(vanID, startDate, endDate, req) {
       throw new Error("The specified van does not exist");
     }
 
+    // Calculate the total price for the booking using the 'calculateTotalPrice' function.
     const totalPrice = await calculateTotalPrice(vanID, startDate, endDate);
+
+    // Create a new 'Booking' object with the provided details.
     const booking = new Booking({
-      user: userID, // Set the user ID obtained from the token
-      van: vanID,
-      startDate: startDate,
-      endDate: endDate,
-      totalPrice: totalPrice,
+      user: userID, // Set the user ID obtained from the token.
+      van: vanID, // Set the van ID for the booking.
+      startDate: startDate, // Set the start date of the booking.
+      endDate: endDate, // Set the end date of the booking.
+      totalPrice: totalPrice, // Set the total price for the booking.
     });
 
+    // Check if the van is available for the specified booking dates.
     const isVanAvailable = van.bookedDates.every((booking) => {
+      // Convert each booked date from the van's bookedDates array to Date objects.
       const bookedStart = new Date(booking.startDate);
       const bookedEnd = new Date(booking.endDate);
+
+      // Convert the new booking start and end dates to Date objects.
       const newStart = new Date(startDate);
       const newEnd = new Date(endDate);
+
+      // Return true if the new booking's start date is after the booked end date
+      // OR if the new booking's end date is before the booked start date,
+      // indicating that there is no overlap between the existing booking and the new booking.
       return newStart > bookedEnd || newEnd < bookedStart;
     });
 

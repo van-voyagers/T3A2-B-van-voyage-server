@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 const { Booking } = require("../src/models/BookingModel");
 
 describe("Booking Model Test", () => {
-  // We're setting up sample data for a booking
+  // Setting up sample data for a booking
   const bookingData = {
     user: new mongoose.Types.ObjectId("60d6ec9f1093044a02262976"),
     van: new mongoose.Types.ObjectId("60d6ec9f1093044a02262977"),

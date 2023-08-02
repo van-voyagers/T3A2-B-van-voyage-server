@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 const { Review } = require("../src/models/ReviewModel");
 
 describe("Review Model Test", () => {
-  // We're setting up sample data for a review
+  // Setting up sample data for a review
   const reviewData = {
     booking: new mongoose.Types.ObjectId("60d6ec9f1093044a02262978"),
     rating: 5,

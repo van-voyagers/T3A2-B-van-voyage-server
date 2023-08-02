@@ -1,4 +1,3 @@
-// Require the necessary libraries and modules
 const mongoose = require("mongoose");
 const { User } = require("../src/models/UserModel");
 

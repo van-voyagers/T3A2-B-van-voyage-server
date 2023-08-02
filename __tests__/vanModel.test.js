@@ -1,4 +1,3 @@
-// Import the necessary modules
 const mongoose = require("mongoose");
 const { Van } = require("../src/models/VanModel");
 
