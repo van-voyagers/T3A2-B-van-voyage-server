@@ -31,7 +31,7 @@ describe("User Model Test", () => {
     password: "testpassword",
     dob: new Date(),
     address: "123 Test St",
-    license: 123456,
+    driversLicense: "123456",
     admin: false,
   };
   // Create a new User instance with the sample data
@@ -70,7 +70,7 @@ describe("User Model Test", () => {
 
   test("new user has license", () => {
     // This test checks if the user object has the license property with the correct value
-    expect(user).toHaveProperty("license", userData.license);
+    expect(user).toHaveProperty("driversLicense", userData.driversLicense);
   });
 
   test("new user has admin", () => {
