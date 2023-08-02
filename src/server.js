@@ -29,11 +29,18 @@ app.use(
 // array of origins for CORS configuration.
 const cors = require("cors");
 var corsOptions = {
-  origin: ['http://localhost:3001', 'http://localhost:3000', 'http://localhost:4173', 'https://van-voyage-server.onrender.com', 'https://sparkling-sawine-917abf.netlify.app', 'https://van-voyage.netlify.app'],
+  origin: [
+    "http://localhost:3001",
+    "http://localhost:3000",
+    "http://localhost:4173",
+    "https://van-voyage-server.onrender.com",
+    "https://sparkling-sawine-917abf.netlify.app",
+    "https://van-voyage.netlify.app",
+  ],
   optionsSuccessStatus: 200,
 };
 app.use(cors(corsOptions));
-app.options('*', cors(corsOptions)); // Apply corsOptions here as well
+app.options("*", cors(corsOptions)); // Apply corsOptions here as well
 
 // Configure some API-friendly request data formatting.
 app.use(express.json());
@@ -43,12 +50,12 @@ app.use(express.urlencoded({ extended: true }));
 const userController = require("./controllers/UserController");
 const vanController = require("./controllers/VanController");
 const bookingController = require("./controllers/BookingController");
-const reviewRouter = require('./controllers/ReviewController');
+const reviewRouter = require("./controllers/ReviewController");
 
 app.use("/users", userController);
 app.use("/vans", vanController);
 app.use("/bookings", bookingController);
-app.use('/reviews', reviewRouter);
+app.use("/reviews", reviewRouter);
 
 const mongoose = require("mongoose");
 var databaseURL = "";

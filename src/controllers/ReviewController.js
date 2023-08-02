@@ -103,11 +103,9 @@ router.post("/create", authenticate, async (req, res) => {
       !bookingDoc ||
       bookingDoc.user._id.toString() !== req.user._id.toString()
     ) {
-      return res
-        .status(400)
-        .json({
-          message: `User is unable to make a review for this booking ID: ${req.params.id}`,
-        });
+      return res.status(400).json({
+        message: `User is unable to make a review for this booking ID: ${req.params.id}`,
+      });
     }
 
     const review = new Review({

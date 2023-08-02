@@ -8,11 +8,11 @@ describe("Booking Model Test", () => {
     van: new mongoose.Types.ObjectId("60d6ec9f1093044a02262977"),
     startDate: new Date(2023, 7, 1),
     endDate: new Date(2023, 7, 7),
-    totalPrice: 780
+    totalPrice: 780,
   };
 
   // Create a test that checks whether a new instance of the Booking model correctly sets the properties
-  test('new booking has correct properties', () => {
+  test("new booking has correct properties", () => {
     // Create a new instance of the Booking model using the booking data
     const booking = new Booking(bookingData);
 
@@ -32,5 +32,3 @@ describe("Booking Model Test", () => {
     expect(booking).toHaveProperty("totalPrice", bookingData.totalPrice);
   });
 });
-
-

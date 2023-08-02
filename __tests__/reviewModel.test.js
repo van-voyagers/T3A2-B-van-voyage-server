@@ -6,11 +6,11 @@ describe("Review Model Test", () => {
   const reviewData = {
     booking: new mongoose.Types.ObjectId("60d6ec9f1093044a02262978"),
     rating: 5,
-    comment: "Great van, awesome trip!"
+    comment: "Great van, awesome trip!",
   };
 
   // Create a test that checks whether a new instance of the Review model correctly sets the properties
-  test('new review has correct properties', () => {
+  test("new review has correct properties", () => {
     // Create a new instance of the Review model using the review data
     const review = new Review(reviewData);
 
