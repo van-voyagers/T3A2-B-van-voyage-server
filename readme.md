@@ -10,7 +10,9 @@
 
 [Part A - Docs](https://github.com/van-voyagers/T3A2-A-van-voyage-docs) <br>
 [Part B - Client](https://github.com/van-voyagers/T3A2-B-van-voyage-client) <br>
-[Part B - Server](https://github.com/van-voyagers/T3A2-B-van-voyage-server)
+[Part B - Server](https://github.com/van-voyagers/T3A2-B-van-voyage-server) <br><br>
+[Deployed Site](https://van-voyage.netlify.app/) <br>
+[Deployed Server](https://van-voyage-server.onrender.com/databaseDump)
 
 <br>
 
