@@ -5,6 +5,8 @@ const router = express.Router();
 const mongoose = require("mongoose");
 
 const { User } = require("../models/UserModel");
+const { Booking } = require("../models/BookingModel")
+const { Van } = require("../models/VanModel")
 
 // Middleware function to authenticate the user making the request.
 // Verifies the JWT from the Authorization header and attaches the user to the request object.
@@ -284,6 +286,31 @@ router.delete("/delete", authenticate, async (req, res) => {
         .json({ message: "No user associated with this token" });
     }
 
+    // Find all the bookings associated with the user
+    const bookings = await Booking.find({ user: req.user._id });
+
+    // Iterate through the bookings and update the vans and delete the bookings
+    for (const booking of bookings) {
+      const vanId = booking.van;
+      const van = await Van.findById(vanId);
+
+      if (van) {
+        // Remove the bookedDates associated with the booking from the van
+        van.bookedDates = van.bookedDates.filter((bookedDate) => {
+          return !(
+            bookedDate.startDate.getTime() ===
+              new Date(booking.startDate).getTime() &&
+            bookedDate.endDate.getTime() === new Date(booking.endDate).getTime()
+          )
+        });
+
+        await van.save(); // save the changes to the van
+      }
+
+      await booking.deleteOne(); // delete the booking
+    }
+
+
     // Attempt to delete the user
     const user = await User.findByIdAndDelete(req.user._id);
 
@@ -315,6 +342,30 @@ router.delete("/admin/delete/:userId", authenticate, async (req, res) => {
   const userToDelete = await User.findById(req.params.userId);
   if (!userToDelete) {
     return res.status(404).json({ message: "User not found" });
+  }
+
+  // Find all the bookings associated with the user
+  const bookings = await Booking.find({ user: req.params.userId });
+
+  // Iterate through the bookings and update the vans and delete the bookings
+  for (const booking of bookings) {
+    const vanId = booking.van;
+    const van = await Van.findById(vanId);
+
+    if (van) {
+      // Remove the bookedDates associated with the booking from the van
+      van.bookedDates = van.bookedDates.filter((bookedDate) => {
+        return !(
+          bookedDate.startDate.getTime() ===
+            new Date(booking.startDate).getTime() &&
+          bookedDate.endDate.getTime() === new Date(booking.endDate).getTime()
+        );
+      });
+
+      await van.save(); // save the changes to the van
+    }
+
+    await booking.deleteOne(); // delete the booking
   }
 
   await User.findByIdAndDelete(req.params.userId);
